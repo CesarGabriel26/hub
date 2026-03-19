@@ -1,0 +1,37 @@
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+    <div *ngFor="let p of programs$ | async" class="glass-card flex flex-col h-full group card">
+        <div class="flex items-start justify-between mb-4">
+            <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                <span class="material-icons-outlined text-2xl">{{ p.icon }}</span>
+            </div>
+            <span *ngIf="p.hasUpdate"
+                class="px-2 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase rounded-full border border-orange-200">
+                Atualização disponível
+            </span>
+        </div>
+
+        <h3 class="text-xl font-bold mb-1">{{ p.name }}</h3>
+        <p class="text-slate-500 text-sm mb-6 flex-1">{{ p.description }}</p>
+
+        <div class="flex items-center justify-between mt-auto pt-6 border-t border-slate-100">
+            <div class="text-sm">
+                <span class="text-slate-400 uppercase text-[10px] font-bold block">Versão</span>
+                <span class="font-medium">{{ p.version }}</span>
+            </div>
+
+            <div class="flex gap-2">
+                <button *ngIf="p.hasUpdate" (click)="update(p)"
+                    class="btn-primary flex items-center gap-2 text-sm !py-2">
+                    <span class="material-icons-outlined text-sm">upgrade</span>
+                    Atualizar
+                </button>
+                <button *ngIf="!p.hasUpdate && p.status === 'installed'" class="btn-secondary text-sm !py-2">
+                    Abrir
+                </button>
+                <button *ngIf="p.status === 'not-installed'" class="btn-primary text-sm !py-2">
+                    Instalar
+                </button>
+            </div>
+        </div>
+    </div>
+</div>

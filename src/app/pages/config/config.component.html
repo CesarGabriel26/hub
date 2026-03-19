@@ -1,0 +1,66 @@
+<div class="max-w-4xl space-y-8">
+      <section class="glass-card">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+          <span class="material-icons-outlined text-blue-600">dns</span>
+          Serviços de Background
+        </h3>
+        
+        <div class="space-y-4">
+          <div *ngFor="let s of services$ | async" class="flex items-center justify-between p-4 rounded-xl bg-slate-50 border border-slate-100 transition-all hover:bg-slate-100">
+            <div class="flex items-center gap-4">
+              <div class="w-12 h-12 rounded-xl flex items-center justify-center" [ngClass]="s.isRunning ? 'bg-emerald-500/10 text-emerald-500' : 'bg-rose-500/10 text-rose-500'">
+                <span class="material-icons-outlined text-2xl">{{ s.icon }}</span>
+              </div>
+              <div>
+                <div class="font-bold flex items-center gap-2">
+                  {{ s.name }}
+                  <span class="w-2 h-2 rounded-full" [ngClass]="s.isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-rose-500'"></span>
+                </div>
+                <div class="text-sm text-slate-500">{{ s.isRunning ? 'Em execução' : 'Parado' }}</div>
+              </div>
+            </div>
+            
+            <div class="flex gap-2">
+              <button (click)="toggle(s.id)" class="px-4 py-2 rounded-lg font-medium transition-all active:scale-95 text-sm" 
+                [ngClass]="s.isRunning ? 'bg-rose-500/20 text-rose-500 hover:bg-rose-500/30' : 'bg-emerald-500/20 text-emerald-500 hover:bg-emerald-500/30'">
+                {{ s.isRunning ? 'Parar' : 'Iniciar' }}
+              </button>
+              <button class="btn-secondary !p-2">
+                <span class="material-icons-outlined text-sm">settings</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="glass-card">
+        <h3 class="text-xl font-bold mb-6 flex items-center gap-2">
+          <span class="material-icons-outlined text-blue-600">settings</span>
+          Preferências do Hub
+        </h3>
+        
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium">Atualizar Automaticamente</div>
+              <div class="text-sm text-slate-500">Baixar e instalar atualizações quando disponíveis.</div>
+            </div>
+            <div class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+          </div>
+
+          <div class="flex items-center justify-between">
+            <div>
+              <div class="font-medium">Iniciar com o Sistema</div>
+              <div class="text-sm text-slate-500">Abrir o Tanamao Hub ao ligar o computador.</div>
+            </div>
+            <div class="relative inline-flex items-center cursor-pointer">
+              <input type="checkbox" class="sr-only peer" checked>
+              <div class="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>

@@ -1,0 +1,7 @@
+:host {
+    display: block;
+}
+
+.card {
+    box-shadow: 0 0 0 1px rgba(255, 94, 0, 0.829) !important;
+}
