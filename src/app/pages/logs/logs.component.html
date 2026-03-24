@@ -1,15 +1,6 @@
 <div class="logs-page">
-
     <!-- Header -->
     <div class="logs-header">
-        <div class="header-title">
-            <span class="material-icons-outlined">description</span>
-            <div>
-                <h1>Logs do Sistema</h1>
-                <p>Visualize os registros de atividade de cada programa</p>
-            </div>
-        </div>
-
         <div class="header-controls">
             <!-- Seletor de Programa -->
             <div class="program-selector">
@@ -60,8 +51,8 @@
                 <span class="material-icons-outlined" style="font-size:14px;">terminal</span>
                 {{ selectedProgram?.name ?? 'Selecione um programa' }} — logs
             </span>
-            @if (logLines.length > 0) {
-            <span class="terminal-count">{{ logLines.length }} linha(s)</span>
+            @if (logLines().length > 0) {
+            <span class="terminal-count">{{ logLines().length }} linha(s)</span>
             }
         </div>
 
@@ -82,7 +73,7 @@
                 {{ line }}
             </div>
             }
-            @if (logLines.length === 0 && !error()) {
+            @if (logLines().length === 0 && !error()) {
             <div class="empty-state">
                 <span class="material-icons-outlined">inbox</span>
                 <span>Nenhum log registrado para este programa ainda.</span>

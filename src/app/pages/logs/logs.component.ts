@@ -13,7 +13,7 @@ interface LogProgram {
     standalone: true,
     imports: [CommonModule, FormsModule],
     templateUrl: './logs.component.html',
-    // styleUrl: './logs.component.css',
+    styleUrl: './logs.component.css',
 })
 export class LogsComponent implements OnInit {
     programs = signal<LogProgram[]>([]);

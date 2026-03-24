@@ -4,10 +4,16 @@
             <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                 <span class="material-icons-outlined text-2xl">{{ p.icon }}</span>
             </div>
-            <span *ngIf="p.hasUpdate"
-                class="px-2 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase rounded-full border border-orange-200">
-                Atualização disponível
-            </span>
+            <div class="flex items-center gap-2">
+                <span *ngIf="p.hasUpdate"
+                    class="px-2 py-1 bg-orange-100 text-orange-600 text-[10px] font-bold uppercase rounded-full border border-orange-200">
+                    Atualização disponível
+                </span>
+                <button (click)="config(p)"
+                    class="p-2 rounded-lg text-slate-400 hover:bg-slate-50 hover:text-slate-600 transition-colors">
+                    <span class="material-icons-outlined text-xl">settings</span>
+                </button>
+            </div>
         </div>
 
         <h3 class="text-xl font-bold mb-1">{{ p.name }}</h3>
