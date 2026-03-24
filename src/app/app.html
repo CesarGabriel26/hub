@@ -1,41 +1,40 @@
+<app-config-modal></app-config-modal>
 <div class="flex h-screen overflow-hidden bg-white text-slate-900">
   <!-- Sidebar -->
   <aside class="w-64 glass border-r border-slate-200 flex flex-col">
-    <div class="p-6">
+    <!-- <div class="p-6">
       <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-600 to-orange-500 bg-clip-text text-transparent">
         Tanamao Hub
       </h1>
-    </div>
+    </div> -->
 
     <nav class="flex-1 px-4 py-4 space-y-2 overflow-y-auto">
-      <a routerLink="/home" routerLinkActive="bg-slate-100 border-slate-200" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
+      <a routerLink="/home" routerLinkActive="bg-slate-100 border-slate-200"
+        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
         <span class="material-icons-outlined">home</span>
         <span class="font-medium">Início</span>
       </a>
-      <a routerLink="/download" routerLinkActive="bg-slate-100 border-slate-200" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
+      <a routerLink="/download" routerLinkActive="bg-slate-100 border-slate-200"
+        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
         <span class="material-icons-outlined">download</span>
         <span class="font-medium">Downloads</span>
       </a>
-      <a routerLink="/config" routerLinkActive="bg-slate-100 border-slate-200" class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
+      <a routerLink="/config" routerLinkActive="bg-slate-100 border-slate-200"
+        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
         <span class="material-icons-outlined">settings</span>
         <span class="font-medium">Configurações</span>
       </a>
+      <a routerLink="/logs" routerLinkActive="bg-slate-100 border-slate-200"
+        class="flex items-center gap-3 px-4 py-3 rounded-xl transition-all hover:bg-slate-50 border border-transparent">
+        <span class="material-icons-outlined">description</span>
+        <span class="font-medium">Logs</span>
+      </a>
     </nav>
 
-    <div class="p-4 mt-auto">
-      <div class="glass-card !p-4 rounded-xl">
-        <div class="text-xs text-slate-500 mb-1">Status do Sistema</div>
-        <div class="flex items-center gap-2">
-          <div class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <div class="text-sm font-medium">Conectado</div>
-        </div>
-      </div>
-    </div>
   </aside>
 
-  <!-- Main Content -->
   <main class="flex-1 overflow-y-auto p-8 relative">
-    <header class="flex justify-between items-center mb-8">
+    <!-- <header class="flex justify-between items-center mb-8">
       <div>
         <h2 class="text-3xl font-bold">Tanamao Hub</h2>
         <p class="text-slate-500">Gerencie seus aplicativos e serviços.</p>
@@ -48,7 +47,7 @@
           HE
         </div>
       </div>
-    </header>
+    </header> -->
 
     <router-outlet></router-outlet>
   </main>

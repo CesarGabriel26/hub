@@ -1,0 +1,94 @@
+<div class="logs-page">
+
+    <!-- Header -->
+    <div class="logs-header">
+        <div class="header-title">
+            <span class="material-icons-outlined">description</span>
+            <div>
+                <h1>Logs do Sistema</h1>
+                <p>Visualize os registros de atividade de cada programa</p>
+            </div>
+        </div>
+
+        <div class="header-controls">
+            <!-- Seletor de Programa -->
+            <div class="program-selector">
+                <span class="material-icons-outlined selector-icon">apps</span>
+                <select id="program-select" [ngModel]="selectedProgramId()"
+                    (ngModelChange)="selectedProgramId.set($event); onProgramChange()"
+                    [disabled]="programs().length === 0">
+                    @for (p of programs(); track p.id) {
+                    <option [value]="p.id">
+                        {{ p.name }}
+                    </option>
+                    }
+                    @if (programs().length === 0) {
+                    <option value="">Carregando...</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Ações -->
+            <button class="btn-action btn-refresh" (click)="loadLogs()" [disabled]="isLoading()">
+                <span class="material-icons-outlined" [class.spin]="isLoading()">refresh</span>
+                <span>Atualizar</span>
+            </button>
+            <button class="btn-action btn-clear" (click)="clearDisplay()">
+                <span class="material-icons-outlined">clear_all</span>
+                <span>Limpar</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Error -->
+    @if (error()) {
+    <div class="error-banner">
+        <span class="material-icons-outlined">error</span>
+        {{ error() }}
+    </div>
+    }
+
+    <!-- Log Terminal -->
+    <div class="log-terminal">
+        <div class="terminal-topbar">
+            <div class="terminal-dots">
+                <span class="dot red"></span>
+                <span class="dot yellow"></span>
+                <span class="dot green"></span>
+            </div>
+            <span class="terminal-title">
+                <span class="material-icons-outlined" style="font-size:14px;">terminal</span>
+                {{ selectedProgram?.name ?? 'Selecione um programa' }} — logs
+            </span>
+            @if (logLines.length > 0) {
+            <span class="terminal-count">{{ logLines.length }} linha(s)</span>
+            }
+        </div>
+
+        <div class="terminal-body" id="log-area">
+            <!-- Loading spinner -->
+            @if (isLoading()) {
+            <div class="terminal-loading">
+                <span class="material-icons-outlined spin">autorenew</span>
+                Carregando logs...
+            </div>
+            }
+
+            <!-- Log lines -->
+            @for (line of logLines(); track $index) {
+            <div class="log-line" [class.log-info]="levelOf(line) === 'info'"
+                [class.log-warn]="levelOf(line) === 'warn'" [class.log-error]="levelOf(line) === 'error'"
+                [class.log-default]="levelOf(line) === 'default'">
+                {{ line }}
+            </div>
+            }
+            @if (logLines.length === 0 && !error()) {
+            <div class="empty-state">
+                <span class="material-icons-outlined">inbox</span>
+                <span>Nenhum log registrado para este programa ainda.</span>
+            </div>
+            }
+        </div>
+    </div>
+
+</div>

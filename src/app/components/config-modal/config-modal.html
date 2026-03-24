@@ -1,0 +1,111 @@
+@if (showConfigModal$ | async) {
+<div class="fixed inset-0 z-[60] flex items-center justify-center p-4">
+    <!-- Backdrop -->
+    <div class="absolute inset-0 bg-slate-900/40 backdrop-blur-sm transition-opacity" (click)="closeModal()"></div>
+
+    <!-- Modal Container -->
+    <div
+        class="relative w-full max-w-lg overflow-hidden bg-white/95 backdrop-blur-xl border border-glass-border rounded-2xl shadow-2xl flex flex-col max-h-[85vh] transition-all transform duration-300 ease-out">
+        <!-- Header -->
+        <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/50">
+            <div class="flex items-center gap-3">
+                <div class="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
+                    <span class="material-icons-outlined">settings</span>
+                </div>
+                <div>
+                    <h2 class="text-lg font-bold text-slate-900">Configuração</h2>
+                    <p class="text-xs text-slate-500 font-medium">{{ (program$ | async)?.name }}</p>
+                </div>
+            </div>
+            <button class="p-2 rounded-lg hover:bg-slate-200/50 text-slate-400 hover:text-slate-600 transition-colors"
+                (click)="closeModal()">
+                <span class="material-icons-outlined text-xl">close</span>
+            </button>
+        </div>
+
+        <!-- Body -->
+        <div class="flex-1 overflow-y-auto px-6 py-6 scroll-smooth">
+            @if(configs()){
+            <div class="space-y-6">
+                <ng-container
+                    *ngTemplateOutlet="renderFields; context: { obj: configs(), parentKey: '', isRoot: true }"></ng-container>
+            </div>
+            }
+        </div>
+
+        <!-- Footer -->
+        <div class="px-6 py-4 bg-slate-50/50 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button class="btn-secondary text-sm" (click)="closeModal()">Cancelar</button>
+            <button class="btn-primary text-sm px-6 shadow-lg shadow-blue-500/20" (click)="saveConfig()">
+                Salvar Alterações
+            </button>
+        </div>
+    </div>
+</div>
+
+
+
+<ng-template #renderFields let-obj="obj" let-parentKey="parentKey" let-isRoot="isRoot">
+    <div [class]="isRoot ? 'space-y-4' : 'ms-4 mt-4 space-y-4 border-l-2 border-slate-100 ps-4'">
+        @for(item of obj | keyvalue; track $index) {
+        <div class="transition-all">
+            @switch (getType(item.value)) {
+            <!-- OBJECT -->
+            @case ('object') {
+            <div class="flex items-center gap-2 mb-1 group">
+                <span class="text-xs font-bold uppercase tracking-widest text-blue-600/70">{{ item.key }}</span>
+                <div class="h-[1px] flex-1 bg-slate-100"></div>
+            </div>
+            <ng-container
+                *ngTemplateOutlet="renderFields; context: { obj: item.value, parentKey: buildKey(parentKey, item.key), isRoot: false }"></ng-container>
+            }
+
+            <!-- STRING -->
+            @case ('string') {
+            <div class="flex flex-col gap-1.5 group">
+                <label
+                    class="text-sm font-semibold text-slate-700 capitalize group-hover:text-blue-600 transition-colors">{{
+                    item.key }}</label>
+                <div class="relative">
+                    <input
+                        class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+                        type="text" [value]="item.value" (input)="updateValue(buildKey(parentKey, item.key), $event)" />
+                </div>
+            </div>
+            }
+
+            <!-- NUMBER -->
+            @case ('number') {
+            <div class="flex flex-col gap-1.5 group">
+                <label
+                    class="text-sm font-semibold text-slate-700 capitalize group-hover:text-blue-600 transition-colors">{{
+                    item.key }}</label>
+                <input
+                    class="w-full px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm text-slate-900 focus:outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all shadow-sm"
+                    type="number" [value]="item.value" (input)="updateValue(buildKey(parentKey, item.key), $event)" />
+            </div>
+            }
+
+            <!-- BOOLEAN -->
+            @case ('boolean') {
+            <label
+                class=" group flex items-center gap-3 cursor-pointer group/toggle p-2 -m-2 rounded-xl hover:bg-slate-50 transition-colors ">
+                <div class="relative inline-flex items-center cursor-pointer">
+                    <input type="checkbox" class="sr-only peer" [checked]="item.value"
+                        (change)="updateCheckbox(buildKey(parentKey, item.key), $event)" />
+                    <div
+                        class="w-10 h-5 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600">
+                    </div>
+                </div>
+                <span
+                    class="text-sm font-semibold text-slate-700 capitalize group-hover/toggle:text-blue-600 transition-colors">
+                    {{ item.key }}
+                </span>
+            </label>
+            }
+            }
+        </div>
+        }
+    </div>
+</ng-template>
+}

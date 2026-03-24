@@ -1,21 +1,55 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { DataService, Program } from '../../services/data.service';
-import { RouterLink } from '@angular/router';
+import { DataService } from '../../services/data.service';
+import { Program } from '../../types/Program';
+import { ModalService } from '../../services/modal.service';
+import { Observable } from 'rxjs';
 
 @Component({
-  selector: 'app-home',
-  standalone: true,
-  imports: [CommonModule, RouterLink],
-  templateUrl: './home.component.html',
-  styleUrl: './home.component.css'
+    selector: 'app-home',
+    standalone: true,
+    imports: [CommonModule],
+    templateUrl: './home.component.html',
+    styleUrl: './home.component.css'
 })
 export class HomeComponent {
-  private dataService = inject(DataService);
-  programs$ = this.dataService.getPrograms();
 
-  update(program: Program) {
-    // Navigate to download page or start update
-    console.log('Update started for', program.name);
-  }
+    programs$!: Observable<Program[]>;
+
+    constructor(
+        private dataService: DataService,
+        private modalService: ModalService
+    ) {
+        this.programs$ = this.dataService.getPrograms();
+    }
+
+    search(event: any) {
+        const term = event.target.value;
+        this.dataService.searchPrograms(term);
+    }
+
+    install(program: Program) {
+        this.dataService.installProgram(program.id);
+    }
+
+    /** Executa o setup pós-instalação de qualquer programa (ex: configurar banco). */
+    setup(program: Program) {
+        if (program.type === 'service') {
+            this.dataService.toggleService(program.id);
+        } else {
+            this.dataService.setupProgram(program.id);
+        }
+    }
+
+    update(program: Program) {
+        this.dataService.updateProgram(program.id);
+    }
+
+    open(program: Program) {
+        this.dataService.openProgram(program.id);
+    }
+
+    async config(program: Program) {
+        this.modalService.setShowConfigModal(true, program);
+    }
 }

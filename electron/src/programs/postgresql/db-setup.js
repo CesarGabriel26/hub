@@ -1,0 +1,226 @@
+/**
+ * PostgreSQL DB Setup
+ * Responsável por: criar banco, configurar usuário local, rodar migrations.
+ * Separado do controller de instalação para clareza de responsabilidade.
+ */
+
+import pkg from 'pg';
+import fs from 'fs';
+import path from 'path';
+import { rootPath, getMigrationsPath } from '../../utils/config.js';
+import { info, warn, error as logError } from '../../utils/logger.js';
+import PostgresController from './controller.js';
+
+const { Pool } = pkg;
+const PROGRAM_ID = 'postgres';
+
+/**
+ * Configura o banco de dados completo:
+ * 1. Cria o banco se não existir
+ * 2. Configura o usuário local
+ * 3. Executa as migrations pendentes
+ *
+ * @param {string} dbName - Nome do banco de dados
+ * @param {string} user - Usuário administrador do postgres
+ * @param {string} password - Senha do usuário administrador
+ * @param {string[]} migrationFiles - Caminhos dos arquivos .sql de migration
+ * @param {Function} callback - Callback de progresso
+ */
+export async function setupDatabase(dbName = 'dados', user = 'postgres', password = 'admin', migrationFiles = [], callback) {
+    info(PROGRAM_ID, `Configurando banco: ${dbName}...`);
+    if (callback) callback({ status: 'initializing', percentage: 0 });
+
+    const adminPool = new Pool({
+        user,
+        host: 'localhost',
+        database: 'postgres', // conecta no banco padrão primeiro
+        password,
+        port: 5432,
+    });
+
+    info(PROGRAM_ID, `Conexão: user=${user}, password=${password}`);
+
+    try {
+        // 1. Garante que o banco existe
+        info(PROGRAM_ID, `Verificando se o banco ${dbName} já existe...`);
+        const dbCheck = await adminPool.query(`SELECT 1 FROM pg_database WHERE datname = $1`, [dbName]);
+        let dbExists = dbCheck.rowCount > 0;
+
+        if (!dbExists) {
+            info(PROGRAM_ID, `Banco ${dbName} não encontrado. Criando banco de dados...`);
+            await adminPool.query(`CREATE DATABASE ${dbName}`);
+            info(PROGRAM_ID, `Banco de dados ${dbName} criado com sucesso.`);
+        } else {
+            info(PROGRAM_ID, `Banco ${dbName} já existe.`);
+        }
+
+        await adminPool.end();
+
+        // 2. Se o banco já existe, fazemos um backup de segurança antes das migrations
+        let backupPath = null;
+        if (dbExists) {
+            const backupsDir = path.join(rootPath(), 'backups');
+            if (!fs.existsSync(backupsDir)) {
+                fs.mkdirSync(backupsDir, { recursive: true });
+            }
+            backupPath = path.join(backupsDir, `${dbName}_pre_migration_${Date.now()}.sql`);
+            await PostgresController.backupDatabase(dbName, backupPath, user, password);
+        }
+
+        // 3. Reconecta no banco alvo para operações
+        const dbPool = new Pool({
+            user,
+            host: 'localhost',
+            database: dbName,
+            password,
+            port: 5432,
+        });
+
+        info(PROGRAM_ID, `Conexão: user=${user}, password=${password}`);
+
+        try {
+            // 4. Configura usuário local
+            await setupLocalUser(dbPool, dbName, callback);
+
+            // 5. Roda migrations
+            await runMigrations(dbPool, dbName, migrationFiles, callback);
+
+            await dbPool.end();
+            info(PROGRAM_ID, 'Banco de dados e migrações concluídos!');
+
+            // Se deu tudo certo, podemos opcionalmente remover o backup ou apenas avisar
+            // Por segurança, vamos manter o backup mas avisar onde está.
+        } catch (migrationError) {
+            logError(PROGRAM_ID, `Erro durante migrações: ${migrationError.message}`);
+
+            if (backupPath && fs.existsSync(backupPath)) {
+                warn(PROGRAM_ID, `Tentando restaurar backup devido a erro: ${backupPath}`);
+                if (callback) callback({ status: 'info', message: 'Erro detectado. Restaurando backup...' });
+
+                await dbPool.end(); // Fecha pool antes de restaurar
+                await PostgresController.restoreDatabase(dbName, backupPath, user, password);
+                warn(PROGRAM_ID, 'Backup restaurado com sucesso.');
+            }
+
+            throw migrationError;
+        }
+    } catch (error) {
+        logError(PROGRAM_ID, `Erro no setup do banco: ${error.message}`);
+        if (callback) callback({ status: 'error', error: error.message });
+        throw error;
+    }
+}
+
+/**
+ * Garante que o usuário local_user existe e tem as permissões corretas.
+ */
+async function setupLocalUser(pool, dbName, callback) {
+    info(PROGRAM_ID, 'Garantindo existência do local_user...');
+    if (callback) callback({ status: 'setup_user', percentage: 10 });
+
+    const users = await pool.query(`SELECT usename FROM pg_user WHERE usename = 'local_user';`);
+    if (users.rowCount === 0) {
+        info(PROGRAM_ID, 'Criando local_user...');
+        await pool.query(`CREATE USER local_user WITH PASSWORD 'sunny1011';`);
+    } else {
+        await pool.query(`ALTER USER local_user WITH PASSWORD 'sunny1011';`);
+    }
+
+    await grantPermissions(pool, dbName);
+}
+
+/**
+ * Revoga temporariamente as permissões do local_user (antes de rodar migrations).
+ */
+async function revokePermissions(pool, dbName) {
+    info(PROGRAM_ID, `Revogando permissões do local_user em ${dbName}...`);
+    await pool.query(`REVOKE CONNECT ON DATABASE ${dbName} FROM local_user;`);
+    await pool.query(`
+        SELECT pg_terminate_backend(pg_stat_activity.pid)
+        FROM pg_stat_activity
+        WHERE pg_stat_activity.datname = $1
+          AND usename = 'local_user'
+          AND pid <> pg_backend_pid();
+    `, [dbName]);
+}
+
+/**
+ * Concede permissões completas ao local_user.
+ */
+async function grantPermissions(pool, dbName) {
+    info(PROGRAM_ID, `Concedendo permissões ao local_user em ${dbName}...`);
+    await pool.query(`GRANT CONNECT ON DATABASE ${dbName} TO local_user;`);
+    await pool.query(`GRANT ALL PRIVILEGES ON DATABASE ${dbName} TO local_user;`);
+    await pool.query(`GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO local_user;`);
+    await pool.query(`GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO local_user;`);
+    await pool.query(`GRANT USAGE ON SCHEMA public TO local_user;`);
+}
+
+/**
+ * Executa os arquivos de migration pendentes (somente os que ainda não foram executados).
+ *
+ * @param {object} pool - Pool de conexão com o banco alvo
+ * @param {string} dbName - Nome do banco de dados
+ * @param {string[]} migrationFiles - Lista de caminhos dos arquivos .sql
+ * @param {Function} callback - Callback de progresso
+ */
+export async function runMigrations(pool, dbName, migrationFiles, callback) {
+    info(PROGRAM_ID, '--- INICIANDO MIGRATIONS ---');
+    if (callback) callback({ status: 'migrating', percentage: 20 });
+
+    try {
+        await revokePermissions(pool, dbName);
+
+        // Tabela de controle de migrations
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS migrations_history (
+                id SERIAL PRIMARY KEY,
+                filename VARCHAR(255) UNIQUE NOT NULL,
+                executed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Se nenhum arquivo foi passado, busca no diretório padrão
+        let filesToRun = migrationFiles;
+        if (!filesToRun || filesToRun.length === 0) {
+            const migrationsDir = getMigrationsPath();
+            info(PROGRAM_ID, `Buscando migrations no diretório: ${migrationsDir}`);
+            if (fs.existsSync(migrationsDir)) {
+                filesToRun = fs.readdirSync(migrationsDir)
+                    .filter(f => f.endsWith('.sql'))
+                    .sort()
+                    .map(f => path.join(migrationsDir, f));
+                info(PROGRAM_ID, `Encontradas ${filesToRun.length} migrations no diretório.`);
+            } else {
+                warn(PROGRAM_ID, `Diretório de migrations não encontrado: ${migrationsDir}`);
+                return;
+            }
+        }
+
+        for (let i = 0; i < filesToRun.length; i++) {
+            const filePath = filesToRun[i];
+            const fileName = path.basename(filePath);
+
+            const alreadyRun = await pool.query(`SELECT id FROM migrations_history WHERE filename = $1`, [fileName]);
+            if (alreadyRun.rowCount > 0) {
+                info(PROGRAM_ID, `Migration já executada: ${fileName}`);
+                continue;
+            }
+
+            info(PROGRAM_ID, `Executando migration: ${fileName}`);
+            const sql = fs.readFileSync(filePath, 'utf8');
+            await pool.query(sql);
+            await pool.query(`INSERT INTO migrations_history (filename) VALUES ($1)`, [fileName]);
+            info(PROGRAM_ID, `Migration concluída: ${fileName}`);
+
+            if (callback) {
+                const percentage = 20 + ((i + 1) / filesToRun.length * 80);
+                callback({ status: 'migrating', percentage, file: fileName });
+            }
+        }
+
+        info(PROGRAM_ID, '--- MIGRATIONS CONCLUÍDAS COM SUCESSO ---');
+    } finally {
+        await grantPermissions(pool, dbName);
+    }
+}

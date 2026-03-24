@@ -12,6 +12,31 @@
     "dev": "concurrently \"ng serve --port 4201\" \"wait-on http://localhost:4201 && cross-env NODE_ENV=development electron .\"",
     "dist": "ng build --base-href ./ && cross-env NODE_ENV=production electron-builder"
   },
+  "build": {
+    "appId": "com.tanamao.hub",
+    "productName": "Tanamao Hub",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/tanamao-hub/browser/**/*",
+      "electron/**/*",
+      "package.json",
+      "public/**/*"
+    ],
+    "win": {
+      "target": [
+        "nsis",
+        "portable"
+      ],
+      "icon": "public/favicon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true
+    },
+    "asar": true
+  },
   "private": true,
   "packageManager": "npm@11.9.0",
   "dependencies": {
