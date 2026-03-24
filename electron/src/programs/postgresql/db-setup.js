@@ -224,3 +224,32 @@ export async function runMigrations(pool, dbName, migrationFiles, callback) {
         await grantPermissions(pool, dbName);
     }
 }
+
+/**
+ * Testa a conexão com o banco de dados.
+ */
+export async function testDatabaseConnection(dbName, user, password, host = 'localhost', port = 5432) {
+    info(PROGRAM_ID, `Testando conexão: host=${host}, port=${port}, user=${user}, database=${dbName}`);
+    
+    const pool = new Pool({
+        user,
+        host,
+        database: dbName,
+        password,
+        port,
+        connectionTimeoutMillis: 5000, 
+    });
+
+    try {
+        const client = await pool.connect();
+        await client.query('SELECT 1');
+        client.release();
+        await pool.end();
+        info(PROGRAM_ID, 'Teste de conexão bem-sucedido!');
+        return { success: true };
+    } catch (err) {
+        logError(PROGRAM_ID, `Falha no teste de conexão: ${err.message}`);
+        await pool.end();
+        return { success: false, error: err.message };
+    }
+}

@@ -6,6 +6,7 @@ contextBridge.exposeInMainWorld('api', {
     postgresRunning: () => ipcRenderer.invoke('postgres:running'),
     postgresVersion: () => ipcRenderer.invoke('postgres:version'),
     postgresStart: () => ipcRenderer.invoke('postgres:start'),
+    postgresTestConnection: (config) => ipcRenderer.invoke('postgres:test-connection', config),
     onPostgresProgress: (callback) => ipcRenderer.on('postgres:progress', (event, value) => callback(value)),
     tanamaoFoodOpen: () => ipcRenderer.invoke('tanamao-food:open'),
     tanamaoFoodIsInstalled: () => ipcRenderer.invoke('tanamao-food:is-installed'),

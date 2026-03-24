@@ -44,11 +44,11 @@ class TanamaoFoodController {
         // Busca o asset que termina com .exe (seu setup)
         // Mais robusto: tenta encontrar Tanamao-Food-Setup, ou qualquer .exe que contenha 'Setup' ou 'Tanamao'
         let setupAsset = latest.assets.find(a => a.name.toLowerCase().endsWith('.exe') && a.name.includes('Tanamao-Food-Setup'));
-        
+
         if (!setupAsset) {
             setupAsset = latest.assets.find(a => a.name.toLowerCase().endsWith('.exe') && a.name.toLowerCase().includes('setup'));
         }
-        
+
         if (!setupAsset) {
             setupAsset = latest.assets.find(a => a.name.toLowerCase().endsWith('.exe'));
         }
@@ -161,10 +161,10 @@ class TanamaoFoodController {
         try {
             // Configura o caminho do log para que o Hub possa ler
             const logPath = getLogFile(PROGRAM_ID);
-            
+
             // Assume que a pasta de userData do Tanamao Food é %APPDATA%/tanamao-food
             const foodUserData = path.join(app.getPath('appData'), 'tanamao-food');
-            
+
             info(PROGRAM_ID, `Configurando log_path em ${foodUserData}: ${logPath}`);
             writeExternalConfig(foodUserData, { log_path: logPath });
 
@@ -297,7 +297,7 @@ class TanamaoFoodController {
                         }
 
                         info(PROGRAM_ID, 'Iniciando configuração do banco de dados...');
-                        
+
                         // Configura o caminho do log para que o Hub possa ler
                         try {
                             const logPath = getLogFile(PROGRAM_ID);
@@ -412,8 +412,8 @@ class TanamaoFoodController {
      * Extrai o arquivo migrations.zip para a pasta de migrations do hub.
      */
     async extractMigrations(zipPath) {
-        const { getMigrationsPath } = await import('../../utils/config.js');
-        const migrationsDir = getMigrationsPath();
+        const { rootPath } = await import('../../utils/config.js');
+        const migrationsDir = rootPath();
 
         if (!fs.existsSync(migrationsDir)) {
             fs.mkdirSync(migrationsDir, { recursive: true });

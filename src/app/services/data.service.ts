@@ -237,12 +237,21 @@ export class DataService {
     return await handler.config();
   }
 
-  async saveProgramConfig(id: string, config: any) {
-    const handler = this.registry.getHandler(id);
-    if (!handler) {
-      console.warn(`[DataService] Nenhum handler para salvar config do programa: ${id}`);
-      return;
+    async saveProgramConfig(id: string, config: any) {
+        const handler = this.registry.getHandler(id);
+        if (!handler) {
+            console.warn(`[DataService] Nenhum handler para salvar config do programa: ${id}`);
+            return;
+        }
+        return await handler.configSave(config);
     }
-    return await handler.configSave(config);
-  }
+
+    async testConnection(id: string, config: any) {
+        const handler = this.registry.getHandler(id) as any;
+        if (handler && handler.testConnection) {
+            return await handler.testConnection(config);
+        }
+        console.warn(`[DataService] Handler para ${id} não suporta teste de conexão.`);
+        return { success: false, error: 'Funcionalidade não suportada para este programa.' };
+    }
 }

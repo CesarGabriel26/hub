@@ -88,7 +88,7 @@ export function initTanamaoFoodApi() {
                     .sort()
                     .map(f => path.join(migrationsPath, f))
                 : [];
-                
+
             const configs = getConfigs();
 
             // Usa o setupDatabase do diretório programs que é o mais completo
@@ -98,19 +98,18 @@ export function initTanamaoFoodApi() {
 
             // O nome da pasta de userData para o Tanamao Food é 'tanamao-food' (conforme seu package.json)
             const foodConfigDir = path.join(app.getPath('userData'), '..', 'tanamao-food');
-            
+
             const dbConfig = {
                 db: {
                     host: configs.host,
                     port: configs.port,
-                    user: configs.user,
                     password: configs.password,
                     database: configs.database
                 }
             };
 
             writeExternalConfig(foodConfigDir, dbConfig);
-            
+
             // Também tenta atualizar na pasta de instalação se for diferente (para o modo dev do Food app)
             if (configs.tanamao_food_path && fs.existsSync(configs.tanamao_food_path)) {
                 writeExternalConfig(configs.tanamao_food_path, dbConfig);

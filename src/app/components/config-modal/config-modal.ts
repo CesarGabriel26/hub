@@ -16,6 +16,8 @@ export class ConfigModal implements OnInit {
     program$!: Observable<Program>;
 
     configs = signal<any>({});
+    isTesting = signal(false);
+    testResult = signal<{ success: boolean; message: string } | null>(null);
 
     constructor(
         private dataService: DataService,
@@ -117,5 +119,30 @@ export class ConfigModal implements OnInit {
         );
 
         this.modalService.setShowConfigModal(false);
+    }
+
+    async testConnection() {
+        this.isTesting.set(true);
+        this.testResult.set(null);
+        try {
+            const result = await this.dataService.testConnection(
+                this.modalService.getProgramId()!,
+                this.configs()
+            );
+            this.testResult.set({
+                success: result.success,
+                message: result.success ? 'Conexão bem-sucedida!' : `Erro: ${result.error}`
+            });
+        } catch (error: any) {
+            this.testResult.set({ success: false, message: `Erro: ${error.message}` });
+        } finally {
+            this.isTesting.set(false);
+        }
+    }
+
+    async runMigrations() {
+        await this.dataService.setupProgram(this.modalService.getProgramId()!);
+        // A própria DataService atualiza o progresso global, 
+        // mas aqui poderíamos fechar o modal ou mostrar aviso
     }
 }

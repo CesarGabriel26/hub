@@ -1,5 +1,6 @@
 import { ipcMain } from "electron";
 import PostgresController from "../programs/postgresql/controller.js";
+import { testDatabaseConnection } from "../programs/postgresql/db-setup.js";
 import { getConfigs, getMigrationsPath, rootPath } from "../utils/config.js";
 import fs from 'fs';
 import path from 'path';
@@ -38,6 +39,20 @@ export function initPostgresApi() {
         try {
             const result = await PostgresController.startPostgres();
             return result;
+        } catch (error) {
+            return { success: false, error: error.message };
+        }
+    });
+
+    ipcMain.handle('postgres:test-connection', async (event, config) => {
+        try {
+            return await testDatabaseConnection(
+                config.database,
+                config.user,
+                config.password,
+                config.host,
+                config.port
+            );
         } catch (error) {
             return { success: false, error: error.message };
         }

@@ -5,7 +5,7 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-export const gitToken = process.env.GIT_ACCESS_TOKEN || ''
+export const gitToken = ''
 
 export function rootPath() {
     return app.isPackaged

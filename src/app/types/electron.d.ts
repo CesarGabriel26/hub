@@ -10,6 +10,7 @@ declare global {
             postgresRunning: () => Promise<{ success: boolean; isRunning?: boolean }>
             postgresVersion: () => Promise<{ success: boolean; version?: string }>
             postgresStart: () => Promise<{ success: boolean; error?: string }>
+            postgresTestConnection: (config: any) => Promise<{ success: boolean; error?: string }>
             onPostgresProgress: (callback: (progress: { status: string; percentage?: number; error?: string }) => void) => void
             tanamaoFoodOpen: () => Promise<void>
             tanamaoFoodIsInstalled: () => Promise<{ success: boolean; isInstalled?: boolean }>

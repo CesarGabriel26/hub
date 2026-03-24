@@ -122,4 +122,12 @@ export class TanamaoFoodHandler implements ProgramHandler {
             return { success: false, error: error.message };
         }
     }
+
+    async testConnection(config: any): Promise<{ success: boolean; error?: string }> {
+        try {
+            return await window.api.postgresTestConnection(config);
+        } catch (error: any) {
+            return { success: false, error: error.message };
+        }
+    }
 }
