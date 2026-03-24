@@ -31,12 +31,11 @@ export class TanamaoFoodHandler implements ProgramHandler {
         if (window.api?.onTanamaoFoodConfigProgress) {
             window.api.onTanamaoFoodConfigProgress((progress) => {
                 if (progress.error) {
-                    // Setup falhou mas o app ainda está instalado
-                    onProgress(this.programId, 'installed');
+                    onProgress(this.programId, 'installed', undefined, progress.error);
                 } else if (progress.status === 'completed') {
-                    onProgress(this.programId, 'installed', 100);
+                    onProgress(this.programId, 'installed', 100, 'Configuração concluída!');
                 } else if (progress.status === 'migrating') {
-                    onProgress(this.programId, 'installing', progress.percentage, 'Configurando banco de dados...');
+                    onProgress(this.programId, 'installing', progress.percentage, `Configurando banco: ${(progress as any).file || '...'}`);
                 }
             });
         }
@@ -67,11 +66,14 @@ export class TanamaoFoodHandler implements ProgramHandler {
 
     async install(): Promise<{ success: boolean; error?: string }> {
         try {
+            console.log('[TanamaoFoodHandler] Chamando window.api.tanamaoFoodInstall...');
             const configResult = await window.api.configsGet();
             const installPath = configResult.success ? configResult.configs?.tanamao_food_path : undefined;
-            await window.api.tanamaoFoodInstall(installPath);
-            return { success: true };
+            const result = await window.api.tanamaoFoodInstall(installPath);
+            console.log('[TanamaoFoodHandler] Resultado do IPC install:', result);
+            return result;
         } catch (error: any) {
+            console.error('[TanamaoFoodHandler] Erro na chamada install:', error);
             return { success: false, error: error.message };
         }
     }
@@ -97,8 +99,8 @@ export class TanamaoFoodHandler implements ProgramHandler {
         try {
             const configResult = await window.api.configsGet();
             const installPath = configResult.success ? configResult.configs?.tanamao_food_path : undefined;
-            await window.api.tanamaoFoodUpdate(installPath);
-            return { success: true };
+            const result = await window.api.tanamaoFoodUpdate(installPath);
+            return result;
         } catch (error: any) {
             return { success: false, error: error.message };
         }

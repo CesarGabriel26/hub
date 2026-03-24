@@ -47,6 +47,7 @@ Thumbs.db
 /release
 /migrations
 /logs
+/backups
 
 configs.json
 .env

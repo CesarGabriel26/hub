@@ -111,9 +111,10 @@ export class DataService {
       }
 
       const result = await handler.install();
+      console.log(`[DataService] Resultado da instalação de ${id}:`, result);
       if (!result.success) {
         console.error(`[DataService] Falha ao instalar ${id}:`, result.error);
-        this.updateProgramStatus(id, 'not-installed');
+        this.updateProgramStatus(id, 'not-installed', undefined, result.error);
         return;
       }
 

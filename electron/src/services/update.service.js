@@ -46,23 +46,13 @@ class UpdateService {
         // Só prossegue se a opção de atualização automática estiver ligada no Hub
         if (!configs.auto_update) return;
 
-        info(PROGRAM_ID, 'Iniciando verificação de atualizações automáticas...');
-
         try {
-            const assets = await TanamaoFoodController.getLatestAssets(gitToken);
-            const currentVersion = TanamaoFoodController.getFoodVersion();
-            const hasUpdate = TanamaoFoodController.compareVersions(assets.version, currentVersion) > 0;
-
-            this.updateStatus['tanamao-food'] = {
-                hasUpdate,
-                version: currentVersion,
-                latestVersion: assets.version
-            };
-
-            if (hasUpdate) {
-                info(PROGRAM_ID, `Nova versão do Tanamao Food detectada: ${assets.version}`);
-                // Se o auto_update estiver on, já tenta baixar e instalar
-                await TanamaoFoodController.updateFood();
+            info(PROGRAM_ID, 'Iniciando verificação de atualização para Tanamao Food...');
+            // O próprio updateFood já verifica se há uma versão nova antes de baixar
+            const result = await TanamaoFoodController.updateFood();
+            
+            if (result.success && result.message !== 'Já atualizado.') {
+                info(PROGRAM_ID, 'Tanamao Food atualizado com sucesso via serviço automático.');
             }
         } catch (err) {
             logError(PROGRAM_ID, `Erro na verificação de atualizações: ${err.message}`);

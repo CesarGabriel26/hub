@@ -4,7 +4,7 @@ import { app } from 'electron';
 
 let logDirInitialized = false;
 
-function getLogDir() {
+export function getLogDir() {
     const LOG_DIR = path.join(app.getPath('userData'), 'logs');
     if (!logDirInitialized) {
         if (!fs.existsSync(LOG_DIR)) {
@@ -15,7 +15,7 @@ function getLogDir() {
     return LOG_DIR;
 }
 
-function getLogFile(programId = 'hub') {
+export function getLogFile(programId = 'hub') {
     return path.join(getLogDir(), `${programId}.log`);
 }
 

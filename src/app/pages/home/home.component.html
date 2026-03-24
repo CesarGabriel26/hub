@@ -13,24 +13,45 @@
         <h3 class="text-xl font-bold mb-1">{{ p.name }}</h3>
         <p class="text-slate-500 text-sm mb-6 flex-1">{{ p.description }}</p>
 
+        <div class="mt-4" *ngIf="p.status !== 'installed' && p.status !== 'not-installed'">
+            <div class="flex justify-between text-[10px] font-bold uppercase mb-1">
+                <span class="text-blue-600">{{ p.message || 'Processando...' }}</span>
+                <span class="text-slate-400">{{ p.progress || 0 }}%</span>
+            </div>
+            <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div class="bg-blue-600 h-full transition-all duration-300" [style.width.%]="p.progress || 0"></div>
+            </div>
+        </div>
+
+        <div class="mt-2 p-2 bg-red-50 border border-red-100 rounded-lg text-[10px] text-red-600" *ngIf="p.status === 'not-installed' && p.message">
+            <div class="flex items-center gap-1 font-bold mb-0.5">
+                <span class="material-icons-outlined text-xs">error_outline</span>
+                Erro na Instalação
+            </div>
+            {{ p.message }}
+        </div>
+
         <div class="flex items-center justify-between mt-auto pt-6 border-t border-slate-100">
             <div class="text-sm">
                 <span class="text-slate-400 uppercase text-[10px] font-bold block">Versão</span>
-                <span class="font-medium">{{ p.version }}</span>
+                <span class="font-medium">{{ p.version || '---' }}</span>
             </div>
 
             <div class="flex gap-2">
-                <button *ngIf="p.hasUpdate" (click)="update(p)"
+                <button *ngIf="p.hasUpdate && p.status === 'installed'" (click)="update(p)"
                     class="btn-primary flex items-center gap-2 text-sm !py-2">
                     <span class="material-icons-outlined text-sm">upgrade</span>
                     Atualizar
                 </button>
-                <button *ngIf="!p.hasUpdate && p.status === 'installed'" class="btn-secondary text-sm !py-2">
+                <button *ngIf="!p.hasUpdate && p.status === 'installed'" (click)="open(p)" class="btn-secondary text-sm !py-2">
                     Abrir
                 </button>
-                <button *ngIf="p.status === 'not-installed'" class="btn-primary text-sm !py-2">
+                <button *ngIf="p.status === 'not-installed'" (click)="install(p)" class="btn-primary text-sm !py-2">
                     Instalar
                 </button>
+                <div *ngIf="p.status !== 'installed' && p.status !== 'not-installed'" class="text-xs text-slate-400 italic py-2">
+                    Aguarde...
+                </div>
             </div>
         </div>
     </div>

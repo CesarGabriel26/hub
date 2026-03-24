@@ -10,8 +10,8 @@
           </div>
           <div>
             <div class="font-bold">{{ p.name }}</div>
-            <div class="text-xs text-slate-500">{{ p.status === 'updating' ? 'Atualizando...' : (p.status ===
-              'downloading' ? 'Baixando...' : 'Aguardando') }}</div>
+            <div class="text-xs text-slate-500">{{ p.message || (p.status === 'updating' ? 'Atualizando...' : (p.status ===
+              'downloading' ? 'Baixando...' : 'Aguardando')) }}</div>
           </div>
         </div>
         <div class="text-right">

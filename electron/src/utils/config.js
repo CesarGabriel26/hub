@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
 
-export const gitToken = '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'
+export const gitToken = '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'
 
 export function rootPath() {
     return app.isPackaged
@@ -52,9 +52,39 @@ export function getConfigs() {
     }
 }
 
+
 export function saveConfigs(configs) {
     const configPath = getConfigPath();
     const oldConfigs = getConfigs();
     const newConfigs = { ...oldConfigs, ...configs };
     fs.writeFileSync(configPath, JSON.stringify(newConfigs, null, 2));
+}
+
+/**
+ * Lê um arquivo configs.json de um diretório externo.
+ */
+export function readExternalConfig(targetDir) {
+    const configPath = path.join(targetDir, 'configs.json');
+    if (fs.existsSync(configPath)) {
+        try {
+            return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        } catch (err) {
+            console.error(`Erro ao ler config externa em ${targetDir}:`, err);
+        }
+    }
+    return null;
+}
+
+/**
+ * Escreve ou atualiza um arquivo configs.json em um diretório externo.
+ */
+export function writeExternalConfig(targetDir, data) {
+    if (!fs.existsSync(targetDir)) {
+        fs.mkdirSync(targetDir, { recursive: true });
+    }
+    const configPath = path.join(targetDir, 'configs.json');
+    const existing = readExternalConfig(targetDir) || {};
+    const newConfig = { ...existing, ...data };
+    fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2));
+    return configPath;
 }

@@ -3,11 +3,11 @@ import TanamaoFoodController from "../programs/tanamao-food/controller.js";
 import PostgresController from "../programs/postgresql/controller.js";
 import PostgisController from "../programs/postgis/controller.js";
 import { setupDatabase } from "../programs/postgresql/db-setup.js";
-import { getConfigs, getMigrationsPath } from "../utils/config.js";
+import { getConfigs, getMigrationsPath, writeExternalConfig } from "../utils/config.js";
 import fs from 'fs';
-import ConfigController from "../controllers/config.controller.js";
 import path from "path";
 import { app } from "electron";
+import { error, info } from "../utils/logger.js";
 
 export function initTanamaoFoodApi() {
     ipcMain.handle('tanamao-food:is-installed', async () => {
@@ -39,12 +39,15 @@ export function initTanamaoFoodApi() {
 
     ipcMain.handle('tanamao-food:install', async (event, installDir) => {
         try {
+            info('tanamao-food-api', 'Iniciando IPC: tanamao-food:install');
             const result = await TanamaoFoodController.installFood((progress) => {
                 event.sender.send('tanamao-food:progress', progress);
             }, installDir);
+            info('tanamao-food-api', `Finalizado IPC: tanamao-food:install com sucesso=${result?.success}`);
             return result;
-        } catch (error) {
-            return { success: false, error: error.message };
+        } catch (err) {
+            error('tanamao-food-api', `Erro fatal no IPC tanamao-food:install: ${err.message}`);
+            return { success: false, error: err.message };
         }
     });
 
@@ -70,6 +73,14 @@ export function initTanamaoFoodApi() {
 
     ipcMain.handle('tanamao-food:setup-database', async (event) => {
         try {
+            info('tanamao-food-api', 'Iniciando IPC: tanamao-food:setup-database');
+            // Medida extra de segurança: não configurar banco se o app não estiver instalado
+            if (!TanamaoFoodController.isFoodInstalled()) {
+                const msg = 'Tentativa de configurar banco, mas o Tanamao Food não está instalado. Abortando.';
+                warn('tanamao-food-api', msg);
+                return { success: false, error: msg };
+            }
+
             const migrationsPath = getMigrationsPath();
             const migrationFiles = fs.existsSync(migrationsPath)
                 ? fs.readdirSync(migrationsPath)
@@ -88,23 +99,21 @@ export function initTanamaoFoodApi() {
             // O nome da pasta de userData para o Tanamao Food é 'tanamao-food' (conforme seu package.json)
             const foodConfigDir = path.join(app.getPath('userData'), '..', 'tanamao-food');
             
-            if (!fs.existsSync(foodConfigDir)) {
-                fs.mkdirSync(foodConfigDir, { recursive: true });
-            }
-
             const dbConfig = {
-                host: configs.host,
-                port: configs.port,
-                user: 'local_user', // O setupDatabase cria este usuário
-                password: 'sunny1011', // Senha padrão definida no setupDatabase
-                database: configs.database
+                db: {
+                    host: configs.host,
+                    port: configs.port,
+                    user: configs.user,
+                    password: configs.password,
+                    database: configs.database
+                }
             };
 
-            ConfigController.updateConfig(foodConfigDir, dbConfig);
+            writeExternalConfig(foodConfigDir, dbConfig);
             
             // Também tenta atualizar na pasta de instalação se for diferente (para o modo dev do Food app)
             if (configs.tanamao_food_path && fs.existsSync(configs.tanamao_food_path)) {
-                ConfigController.updateConfig(configs.tanamao_food_path, dbConfig);
+                writeExternalConfig(configs.tanamao_food_path, dbConfig);
             }
 
             return { success: true };

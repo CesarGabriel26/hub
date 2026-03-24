@@ -96,7 +96,7 @@ export default function initIPCApi() {
         if (!program) {
             throw new Error(`Programa ${programId} não encontrado`);
         }
-        const configPath = path.join(app.getPath('userData'), programId, 'configs.json');
+        const configPath = path.join(app.getPath('userData'), '..', programId, 'configs.json');
         fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
     });
 }

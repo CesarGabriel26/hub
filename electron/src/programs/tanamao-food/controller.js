@@ -10,7 +10,9 @@ import fs from 'fs';
 import { dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getConfigs, gitToken, rootPath } from '../../utils/config.js';
-import { info, warn, error as logError } from '../../utils/logger.js';
+import { info, warn, error as logError, getLogFile } from '../../utils/logger.js';
+import { writeExternalConfig } from '../../utils/config.js';
+import { app } from 'electron';
 import axios from 'axios';
 import PostgresController from '../postgresql/controller.js';
 import PostgisController from '../postgis/controller.js';
@@ -157,6 +159,15 @@ class TanamaoFoodController {
             return { success: false, error: 'Tanamao Food não está instalado.' };
         }
         try {
+            // Configura o caminho do log para que o Hub possa ler
+            const logPath = getLogFile(PROGRAM_ID);
+            
+            // Assume que a pasta de userData do Tanamao Food é %APPDATA%/tanamao-food
+            const foodUserData = path.join(app.getPath('appData'), 'tanamao-food');
+            
+            info(PROGRAM_ID, `Configurando log_path em ${foodUserData}: ${logPath}`);
+            writeExternalConfig(foodUserData, { log_path: logPath });
+
             info(PROGRAM_ID, `Abrindo app: ${installPath}`);
             spawn(`"${installPath}"`, [], { detached: true, stdio: 'ignore', shell: true }).unref();
             return { success: true };
@@ -214,7 +225,18 @@ class TanamaoFoodController {
 
             // 2. Buscar informações do release mais recente
             if (progressCallback) progressCallback({ status: 'checking', message: 'Buscando versão mais recente...' });
-            const assets = await this.getLatestAssets(gitToken);
+            let assets;
+            try {
+                assets = await this.getLatestAssets(gitToken);
+            } catch (err) {
+                let msg = `Erro ao buscar assets no GitHub: ${err.message}`;
+                if (err.response && err.response.status === 401) {
+                    msg = 'Erro de autenticação no GitHub: Token (PAT) expirado ou inválido. Verifique as configurações.';
+                } else if (err.response && err.response.status === 403) {
+                    msg = 'Limite de taxa do GitHub excedido ou token sem permissão.';
+                }
+                throw new Error(msg);
+            }
 
             if (!assets.setup) throw new Error("Instalador .exe não encontrado no release.");
 
@@ -264,7 +286,26 @@ class TanamaoFoodController {
                 proc.on('close', async (code) => {
                     if (code === 0) {
                         if (progressCallback) progressCallback({ status: 'completed', percentage: 100 });
-                        info(PROGRAM_ID, 'Instalação do executável concluída com sucesso. Iniciando configuração do banco de dados...');
+                        info(PROGRAM_ID, 'Instalação do executável concluída com sucesso. Verificando instalação...');
+
+                        // Verifica se o executável foi realmente criado
+                        if (!this.isFoodInstalled()) {
+                            const errorMsg = 'O executável do Tanamao Food não foi encontrado após a instalação. O setup do banco será ignorado.';
+                            logError(PROGRAM_ID, errorMsg);
+                            if (progressCallback) progressCallback({ status: 'error', error: errorMsg });
+                            return resolve({ success: false, error: errorMsg });
+                        }
+
+                        info(PROGRAM_ID, 'Iniciando configuração do banco de dados...');
+                        
+                        // Configura o caminho do log para que o Hub possa ler
+                        try {
+                            const logPath = getLogFile(PROGRAM_ID);
+                            const foodUserData = path.join(app.getPath('appData'), 'tanamao-food');
+                            writeExternalConfig(foodUserData, { log_path: logPath });
+                        } catch (logCfgError) {
+                            logError(PROGRAM_ID, `Erro ao configurar log_path após instalação: ${logCfgError.message}`);
+                        }
 
                         // Após instalar o executável, rodamos o setup do banco
                         try {

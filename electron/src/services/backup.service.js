@@ -36,12 +36,18 @@ class BackupService {
         }
 
         const now = new Date();
+        const dateStr = now.toISOString().split('T')[0]; // YYYY-MM-DD
+
+        // Se já foi feito backup hoje, pula
+        if (configs.last_backup_date === dateStr) {
+            return;
+        }
+
         const currentDay = now.getDay(); // 0 (domingo) a 6 (sábado)
         const currentHour = now.getHours();
         const currentMinute = now.getMinutes();
 
-        // Ajusta domingo de 0 para 7 se a UI usar 1-7 (segunda-domingo)
-        // Mas o padrão JS é 0-6. Vamos assumir que backup_days segue esse padrão (0-6).
+        // Verifica se o dia atual está configurado
         if (!configs.backup_days || !configs.backup_days.includes(currentDay)) {
             return;
         }
@@ -50,11 +56,11 @@ class BackupService {
         
         // Verifica se é o horário configurado
         if (currentHour === configHour && currentMinute === configMinute) {
-            await this.performBackup(configs);
+            await this.performBackup(configs, dateStr);
         }
     }
 
-    async performBackup(configs) {
+    async performBackup(configs, dateStr) {
         try {
             const backupsDir = configs.backup_path || path.join(rootPath(), 'backups');
             if (!fs.existsSync(backupsDir)) {
@@ -77,6 +83,11 @@ class BackupService {
                 configs.user, 
                 configs.password
             );
+
+            // Salva a data do último backup para não repetir no mesmo dia
+            import('../utils/config.js').then(({ saveConfigs }) => {
+                saveConfigs({ last_backup_date: dateStr });
+            });
 
             info(PROGRAM_ID, `Backup automático concluído com sucesso: ${filename}`);
         } catch (err) {
