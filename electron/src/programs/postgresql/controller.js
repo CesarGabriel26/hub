@@ -6,7 +6,7 @@
 
 import { execSync, spawn } from 'child_process';
 import { rootPath, getConfigs, getWritablePath } from '../../utils/config.js';
-import { info, warn, error as logError, logDetailed } from '../../utils/logger.js';
+import { info, warn, error as logError, logDetailed, getLogDir } from '../../utils/logger.js';
 import path from 'path';
 import axios from 'axios';
 import fs from 'fs';
@@ -200,11 +200,7 @@ class PostgresController {
             const configs = getConfigs();
             const port = configs.port || 5432;
             const dataPath = this.getDataPath();
-            const logFile = path.join(getWritablePath(), 'logs', 'postgres_service.log');
-
-            if (!fs.existsSync(path.dirname(logFile))) {
-                fs.mkdirSync(path.dirname(logFile), { recursive: true });
-            }
+            const logFile = path.join(getLogDir(), 'postgres_service.log');
 
             // Garante que o diretório de dados existe
             await this.initDatabaseDir();
@@ -620,10 +616,7 @@ class PostgresController {
 
             info(PROGRAM_ID, `Iniciando PostgreSQL na porta ${port} a partir de ${pgDataPath}...`);
 
-            const logFile = path.join(pgDataPath, 'pg_ctl.log');
-            if (!fs.existsSync(path.dirname(logFile))) {
-                fs.mkdirSync(path.dirname(logFile), { recursive: true });
-            }
+            const logFile = path.join(getLogDir(), 'postgres_service.log');
 
             // pg_ctl start -D <dataPath> -l <logFile> -o "-p <port>"
             // Usamos -W (no wait) para não travar o processo principal.

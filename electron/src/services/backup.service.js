@@ -68,7 +68,6 @@ class BackupService {
             }
 
             const dbName = configs.database || 'tanamao';
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
             const dayName = ['domingo', 'segunda', 'terca', 'quarta', 'quinta', 'sexta', 'sabado'][new Date().getDay()];
             
             // Backup rotativo por dia da semana

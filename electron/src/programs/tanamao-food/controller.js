@@ -514,7 +514,7 @@ class TanamaoFoodController {
 
             updateProgress({ status: 'completed', percentage: 100, message: 'Instalação concluída!' });
             info(PROGRAM_ID, '──── Instalação do Tanamao Food concluída ────');
-            return { success: true };
+            return { success: true, setupDone: true };
 
         } catch (e) {
             logError(PROGRAM_ID, `Erro no processo de instalação: ${e.message}`);

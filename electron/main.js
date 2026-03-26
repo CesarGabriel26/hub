@@ -56,9 +56,12 @@ function createWindow() {
         ? path.join(app.getAppPath(), 'dist/tanamao-hub/browser/index.html')
         : path.join(__dirname, '../dist/tanamao-hub/browser/index.html');
 
-    // win.loadFile(indexPath);
-
-    win.loadURL('http://localhost:4201');
+    // if dev use localhost:4201
+    if (process.env.NODE_ENV === 'development') {
+        win.loadURL('http://localhost:4201');
+    } else {
+        win.loadFile(indexPath);
+    }
 
     win.on('close', (e) => {
         if (!isQuitting) {

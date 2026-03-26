@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('api', {
 
     logsGet: (programId) => ipcRenderer.invoke('logs:get', programId),
     logsList: () => ipcRenderer.invoke('logs:list'),
+    logsClear: (programId) => ipcRenderer.invoke('logs:clear', programId),
     logsWatch: (programId) => ipcRenderer.send('logs:watch', programId),
     logsUnwatch: () => ipcRenderer.send('logs:unwatch'),
     onLogsUpdate: (callback) => ipcRenderer.on('logs:update', (event, data) => callback(data)),

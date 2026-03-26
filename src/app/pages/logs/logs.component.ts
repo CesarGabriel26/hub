@@ -84,8 +84,14 @@ export class LogsComponent implements OnInit, OnDestroy {
         }
     }
 
-    clearDisplay() {
-        this.logContent.set('');
+    async clearLogs() {
+        if (!this.selectedProgramId()) return;
+        try {
+            await (window.api as any).logsClear(this.selectedProgramId());
+            this.logContent.set('');
+        } catch (e: any) {
+            this.error.set('Erro ao limpar logs.');
+        }
     }
 
     scrollToBottom() {

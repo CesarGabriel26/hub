@@ -8,7 +8,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { getLogs, getLogFile } from '../utils/logger.js';
+import { getLogs, getLogFile, getLogDir } from '../utils/logger.js';
 import { programRegistry } from '../programs/registry.js';
 import fs from 'fs';
 
@@ -25,17 +25,52 @@ export function initLogApi() {
         }
     });
 
-    // ── Listar programas disponíveis (todos do registry) ─────────────────────
+    // ── Listar todos os arquivos de log disponíveis no diretório ─────────────
     ipcMain.handle('logs:list', () => {
         try {
-            const programs = programRegistry.filter(({ program }) => program.type === 'app').map(({ program }) => ({
-                id: program.id,
-                name: program.name,
-                icon: program.icon,
-            }));
+            const logDir = getLogDir();
+            const registryMap = new Map(
+                programRegistry.map(({ program }) => [program.id, program])
+            );
+
+            let programs = [];
+
+            if (fs.existsSync(logDir)) {
+                const files = fs.readdirSync(logDir).filter(f => f.endsWith('.log'));
+                programs = files.map(file => {
+                    const id = file.replace(/\.log$/, '');
+                    const registryProgram = registryMap.get(id);
+                    return {
+                        id,
+                        name: registryProgram?.name ?? id,
+                        icon: registryProgram?.icon ?? null,
+                    };
+                });
+            }
+
+            // Fallback: se o diretório ainda não existe, usa o registry
+            if (programs.length === 0) {
+                programs = programRegistry.map(({ program }) => ({
+                    id: program.id,
+                    name: program.name,
+                    icon: program.icon,
+                }));
+            }
+
             return { success: true, programs };
         } catch (e) {
             return { success: false, error: e.message, programs: [] };
+        }
+    });
+
+    // ── Limpar arquivo de log de um programa ──────────────────────────────────
+    ipcMain.handle('logs:clear', (_, programId) => {
+        try {
+            const logFile = getLogFile(programId);
+            fs.writeFileSync(logFile, '');
+            return { success: true };
+        } catch (e) {
+            return { success: false, error: e.message };
         }
     });
 

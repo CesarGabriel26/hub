@@ -119,8 +119,11 @@ export class DataService {
       }
 
       // Setup pós-instalação (ex: configurar banco de dados)
-      this.updateProgramStatus(id, 'installing', 0, 'Configurando...');
-      await handler.setup();
+      // Ignorado se o próprio install já executou o setup (ex: tanamao-food)
+      if (!(result as any).setupDone) {
+        this.updateProgramStatus(id, 'installing', 0, 'Configurando...');
+        await handler.setup();
+      }
 
       this.updateProgramStatus(id, 'installed');
       await this.checkStatuses();
