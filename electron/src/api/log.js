@@ -30,13 +30,15 @@ export function initLogApi() {
         try {
             const logDir = getLogDir();
             const registryMap = new Map(
-                programRegistry.map(({ program }) => [program.id, program])
+                programRegistry.map(({ metadata }) => [metadata.id, metadata])
             );
 
             let programs = [];
 
+            console.log(logDir);
             if (fs.existsSync(logDir)) {
                 const files = fs.readdirSync(logDir).filter(f => f.endsWith('.log'));
+
                 programs = files.map(file => {
                     const id = file.replace(/\.log$/, '');
                     const registryProgram = registryMap.get(id);
@@ -50,10 +52,10 @@ export function initLogApi() {
 
             // Fallback: se o diretório ainda não existe, usa o registry
             if (programs.length === 0) {
-                programs = programRegistry.map(({ program }) => ({
-                    id: program.id,
-                    name: program.name,
-                    icon: program.icon,
+                programs = programRegistry.map(({ metadata }) => ({
+                    id: metadata.id,
+                    name: metadata.name,
+                    icon: metadata.icon,
                 }));
             }
 

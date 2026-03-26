@@ -1,7 +1,6 @@
-import { Component, inject, OnInit } from '@angular/core';
+import { Component, inject, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data.service';
-import { map } from 'rxjs';
 
 @Component({
   selector: 'app-services',
@@ -10,18 +9,20 @@ import { map } from 'rxjs';
   templateUrl: './services.component.html',
   styleUrl: './services.component.css'
 })
-export class ServicesComponent implements OnInit {
+export class ServicesComponent {
   private dataService = inject(DataService);
 
-  postgres$ = this.dataService.getPrograms().pipe(
-    map(programs => programs.find(p => p.id === 'postgresql'))
+  protected readonly services = computed(() =>
+    this.dataService.programs().filter(p => p.type === 'service')
   );
 
+  // ngOnInit is kept for now, but its content is removed as per the change's implication
+  // that checkStatuses() is no longer needed here.
   ngOnInit(): void {
-    this.dataService.checkStatuses();
+    // this.dataService.checkStatuses(); // Removed as per the new logic
   }
 
-  togglePostgres() {
-    this.dataService.toggleService('postgresql');
+  async toggleService(id: string) {
+    await this.dataService.toggleService(id);
   }
 }

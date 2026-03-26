@@ -42,7 +42,6 @@ export class LogsComponent implements OnInit, OnDestroy {
     async loadPrograms() {
         try {
             const result: any = await window.api.logsList();
-
             if (result.success) {
                 this.programs.set(result.programs);
                 if (this.programs().length > 0) {

@@ -156,6 +156,41 @@ class PostgresController {
         }
     }
 
+    // ─── Interface Padrão ─────────────────────────────────────────────────────
+
+    isRunning() {
+        return this.isPostgresRunning();
+    }
+
+    getVersion() {
+        const v = this.getPostgresVersion();
+        return v ? `${v}.0` : null;
+    }
+
+    getStatus() {
+        return {
+            status: this.isInstalled() ? 'installed' : 'not-installed',
+            isRunning: this.isRunning(),
+            version: this.getVersion(),
+        };
+    }
+
+    async install(progressCallback) {
+        return this.downloadAndInstall(progressCallback);
+    }
+
+    async uninstall(progressCallback) {
+        return this.uninstallPostgres(progressCallback);
+    }
+
+    async start() {
+        return this.startPostgres();
+    }
+
+    async stop() {
+        return this.stopPostgres();
+    }
+
     // ─── Serviço ──────────────────────────────────────────────────────────────
 
     /**

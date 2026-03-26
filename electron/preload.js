@@ -35,4 +35,6 @@ contextBridge.exposeInMainWorld('api', {
 
     programConfigGet: (programId) => ipcRenderer.invoke('program:config:get', programId),
     programConfigSave: (programId, config) => ipcRenderer.invoke('program:config:save', programId, config),
+    programAction: (programId, action, ...args) => ipcRenderer.invoke('program:action', programId, action, ...args),
+    tanamaoFoodUpdate: (installDir) => ipcRenderer.invoke('tanamao-food:update', installDir),
 });

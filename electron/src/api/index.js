@@ -9,7 +9,7 @@
  */
 
 import { ipcMain } from 'electron';
-import { programRegistry } from '../programs/registry.js';
+import { ProgramManager, programRegistry, initializeRegistry } from '../programs/registry.js';
 import { initConfigApi } from './config.js';
 import { initLogApi } from './log.js';
 import { info, error } from '../utils/logger.js';
@@ -17,41 +17,16 @@ import path from 'path';
 import fs from 'fs';
 import { app } from 'electron';
 
-// Controllers usados para consultar status em programs:get
-import PostgresController from '../programs/postgresql/controller.js';
-import TanamaoFoodController from '../programs/tanamao-food/controller.js';
-import { log } from 'console';
 
-/**
- * Mapa de funções que retornam o status atual de cada programa pelo id.
- * Ao adicionar um novo programa com status dinâmico, adicione uma entry aqui.
- */
-const statusResolvers = {
-    'postgresql': () => {
-        const version = PostgresController.getPostgresVersion();
-        const isRunning = PostgresController.isPostgresRunning();
-        return {
-            version: version ? `${version}.0` : null,
-            status: version ? 'installed' : 'not-installed',
-            isRunning,
-        };
-    },
-    'tanamao-food': () => {
-        const isInstalled = TanamaoFoodController.isFoodInstalled();
-        const isRunning = TanamaoFoodController.isFoodRunning();
-        const version = TanamaoFoodController.getFoodVersion();
-        return {
-            version,
-            status: isInstalled ? 'installed' : 'not-installed',
-            isRunning,
-        };
-    },
-};
+export default async function initIPCApi() {
+    // Inicializa o registro de programas dinamicamente
+    await initializeRegistry();
 
-export default function initIPCApi() {
     // Inicializa a API de cada programa registrado
     for (const { initApi } of programRegistry) {
-        initApi();
+        if (typeof initApi === 'function') {
+            initApi();
+        }
     }
 
     // Config é uma API global (não pertence a nenhum programa específico)
@@ -62,21 +37,29 @@ export default function initIPCApi() {
 
     // Retorna a lista de programas com status atual
     ipcMain.handle('programs:get', () => {
-        return programRegistry
-            .map(({ program }) => {
-                const resolver = statusResolvers[program.id];
-                const dynamicStatus = resolver ? resolver() : {};
-                return {
-                    hasUpdate: false,
-                    isRunning: false,
-                    ...program,
-                    ...dynamicStatus,
-                };
-            })
+        return ProgramManager.getProgramsWithStatus();
+    });
+
+    /**
+     * Handler genérico para ações em programas.
+     * Substitui gradualmente chamadas específicas por programa.
+     */
+    ipcMain.handle('program:action', async (event, programId, action, ...args) => {
+        info('API', `Action "${action}" requested for program: ${programId}`);
+        const controller = ProgramManager.getController(programId);
+        if (!controller) {
+            throw new Error(`Controller para o programa ${programId} não encontrado.`);
+        }
+
+        if (typeof controller[action] !== 'function') {
+            throw new Error(`Ação "${action}" não suportada pelo programa ${programId}.`);
+        }
+
+        return await controller[action](...args);
     });
 
     ipcMain.handle('program:config:get', async (event, programId) => {
-        const program = programRegistry.find(p => p.program.id === programId)?.program;
+        const program = programRegistry.find(p => p.metadata.id === programId)?.metadata;
         if (!program) {
             throw new Error(`Programa ${programId} não encontrado`);
         }
@@ -90,7 +73,7 @@ export default function initIPCApi() {
     });
 
     ipcMain.handle('program:config:save', async (event, programId, config) => {
-        const program = programRegistry.find(p => p.program.id === programId)?.program;
+        const program = programRegistry.find(p => p.metadata.id === programId)?.metadata;
         if (!program) {
             throw new Error(`Programa ${programId} não encontrado`);
         }

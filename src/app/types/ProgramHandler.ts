@@ -60,4 +60,14 @@ export interface ProgramHandler {
      * Desinstala o programa.
      */
     uninstall(): Promise<{ success: boolean; error?: string }>;
+
+    /**
+     * Inicia o programa/serviço.
+     */
+    start?(): Promise<{ success: boolean; error?: string }>;
+
+    /**
+     * Para o programa/serviço.
+     */
+    stop?(): Promise<{ success: boolean; error?: string }>;
 }

@@ -1,9 +1,8 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject, signal, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DataService } from '../../services/data.service';
 import { Program } from '../../types/Program';
 import { ModalService } from '../../services/modal.service';
-import { map, Observable } from 'rxjs';
 
 @Component({
     selector: 'app-home',
@@ -13,17 +12,12 @@ import { map, Observable } from 'rxjs';
     styleUrl: './home.component.css'
 })
 export class HomeComponent {
+    private dataService = inject(DataService);
+    private modalService = inject(ModalService);
 
-    programs$!: Observable<Program[]>;
-
-    constructor(
-        private dataService: DataService,
-        private modalService: ModalService
-    ) {
-        this.programs$ = this.dataService.getPrograms().pipe(
-            map((programs: Program[]) => programs.filter((p: Program) => p.type === 'app'))
-        );
-    }
+    protected readonly programs = computed(() => 
+        this.dataService.programs().filter(p => p.type === 'app')
+    );
 
     search(event: any) {
         const term = event.target.value;

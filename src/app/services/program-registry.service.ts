@@ -7,19 +7,21 @@ import { TanamaoFoodHandler } from './handlers/tanamao-food.handler';
   providedIn: 'root'
 })
 export class ProgramRegistryService {
-  readonly handlers: ProgramHandler[];
+  private handlersMap = new Map<string, ProgramHandler>();
 
   constructor(
     private postgres: PostgresHandler,
     private tanamaoFood: TanamaoFoodHandler,
   ) {
-    this.handlers = [
-      this.postgres,
-      this.tanamaoFood,
-    ];
+    const registry = [this.postgres, this.tanamaoFood];
+    registry.forEach(h => this.handlersMap.set(h.programId, h));
+  }
+
+  get handlers(): ProgramHandler[] {
+    return Array.from(this.handlersMap.values());
   }
 
   getHandler(id: string): ProgramHandler | undefined {
-    return this.handlers.find(h => h.programId === id);
+    return this.handlersMap.get(id);
   }
 }

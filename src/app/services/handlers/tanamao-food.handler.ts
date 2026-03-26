@@ -1,24 +1,14 @@
 import { Injectable } from '@angular/core';
+import { BaseHandler } from './base.handler';
 import { Program } from '../../types/Program';
-import { ProgramHandler } from '../../types/ProgramHandler';
 
-
-/**
- * TanamaoFoodHandler
- * ==================
- * Implementa ProgramHandler para o Tanamao Food.
- * Responsável por: verificar status, instalar (com setup de banco), abrir o app.
- */
 @Injectable({ providedIn: 'root' })
-export class TanamaoFoodHandler implements ProgramHandler {
+export class TanamaoFoodHandler extends BaseHandler {
     readonly programId = 'tanamao-food';
 
-    init(onProgress: (id: string, status: Program['status'], progress?: number, message?: string) => void): void {
+    override init(onProgress: (id: string, status: Program['status'], progress?: number, message?: string) => void): void {
         if (window.api?.onTanamaoFoodProgress) {
             window.api.onTanamaoFoodProgress((progress) => {
-                // Reporta apenas estados INTERMEDIÁRIOS — o estado final (installed / not-installed)
-                // é definido exclusivamente pelo retorno do IPC em DataService, evitando que o
-                // evento 'completed' do desinstalador sobrescreva o status correto.
                 if (progress.status === 'installing') {
                     onProgress(this.programId, 'installing', progress.percentage, (progress as any).message);
                 } else if (progress.status !== 'completed' && !progress.error) {
@@ -32,99 +22,23 @@ export class TanamaoFoodHandler implements ProgramHandler {
                 if (progress.status === 'migrating') {
                     onProgress(this.programId, 'installing', progress.percentage, `Configurando banco: ${(progress as any).file || '...'}`);
                 }
-                // completed e error também ficam com o DataService
             });
         }
     }
 
-    async checkStatus(): Promise<Partial<Program>> {
-        const result: Partial<Program> = {};
-        try {
-            const installedResult = await window.api.tanamaoFoodIsInstalled();
-            if (installedResult.success) {
-                result.status = installedResult.isInstalled ? 'installed' : 'not-installed';
-            }
-
-            const runningResult = await window.api.tanamaoFoodIsRunning();
-            if (runningResult.success) {
-                result.isRunning = runningResult.isRunning;
-            }
-
-            const versionResult = await window.api.tanamaoFoodVersion();
-            if (versionResult.success) {
-                result.version = versionResult.version;
-            }
-        } catch (error) {
-            console.error('[TanamaoFoodHandler] Erro ao verificar status:', error);
-        }
-        return result;
-    }
-
-    async install(): Promise<{ success: boolean; error?: string }> {
-        try {
-            console.log('[TanamaoFoodHandler] Chamando window.api.tanamaoFoodInstall...');
-            const configResult = await window.api.configsGet();
-            const installPath = configResult.success ? configResult.configs?.tanamao_food_path : undefined;
-            const result = await window.api.tanamaoFoodInstall(installPath);
-            console.log('[TanamaoFoodHandler] Resultado do IPC install:', result);
-            return result;
-        } catch (error: any) {
-            console.error('[TanamaoFoodHandler] Erro na chamada install:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async open(): Promise<void> {
-        try {
-            await window.api.tanamaoFoodOpen();
-        } catch (error) {
-            console.error('[TanamaoFoodHandler] Erro ao abrir:', error);
-        }
-    }
-
-    /** Setup pós-instalação: cria banco de dados e roda migrations */
-    async setup(): Promise<{ success: boolean; error?: string }> {
-        try {
-            return await window.api.tanamaoFoodSetupDatabase();
-        } catch (error: any) {
-            return { success: false, error: error.message };
-        }
-    }
-
-    async update(): Promise<{ success: boolean; error?: string }> {
+    override async install(): Promise<{ success: boolean; error?: string }> {
         try {
             const configResult = await window.api.configsGet();
             const installPath = configResult.success ? configResult.configs?.tanamao_food_path : undefined;
-            const result = await window.api.tanamaoFoodUpdate(installPath);
-            return result;
-        } catch (error: any) {
-            console.error('[TanamaoFoodHandler] Erro na chamada update:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async uninstall(): Promise<{ success: boolean; error?: string }> {
-        try {
-            const result = await window.api.tanamaoFoodUninstall();
-            return result;
-        } catch (error: any) {
-            console.error('[TanamaoFoodHandler] Erro na chamada uninstall:', error);
-            return { success: false, error: error.message };
-        }
-    }
-
-    async config(): Promise<{ success: boolean; config?: any, error?: string }> {
-        try {
-            const result = await window.api.programConfigGet(this.programId);
-            return result;
+            return await window.api.programAction(this.programId, 'install', installPath);
         } catch (error: any) {
             return { success: false, error: error.message };
         }
     }
 
-    async configSave(config: any): Promise<{ success: boolean; error?: string }> {
+    override async update(): Promise<{ success: boolean; error?: string }> {
         try {
-            return await window.api.programConfigSave(this.programId, config);
+            return await window.api.programAction(this.programId, 'update');
         } catch (error: any) {
             return { success: false, error: error.message };
         }
@@ -132,7 +46,7 @@ export class TanamaoFoodHandler implements ProgramHandler {
 
     async testConnection(config: any): Promise<{ success: boolean; error?: string }> {
         try {
-            return await window.api.postgresTestConnection(config);
+            return await window.api.programAction('postgresql', 'testConnection', config);
         } catch (error: any) {
             return { success: false, error: error.message };
         }

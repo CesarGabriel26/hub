@@ -71,8 +71,8 @@ function createWindow() {
     });
 }
 
-app.whenReady().then(() => {
-    initIPCApi();
+app.whenReady().then(async () => {
+    await initIPCApi();
     BackupService.start();
     UpdateService.start();
     hubServer = initHubServer();

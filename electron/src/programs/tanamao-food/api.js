@@ -1,15 +1,13 @@
 import { ipcMain } from "electron";
-import TanamaoFoodController from "../programs/tanamao-food/controller.js";
-import PostgresController from "../programs/postgresql/controller.js";
-import PostgisController from "../programs/postgis/controller.js";
-import { setupDatabase } from "../programs/postgresql/db-setup.js";
-import { getConfigs, getMigrationsPath, writeExternalConfig } from "../utils/config.js";
+import TanamaoFoodController from "./controller.js";
+import { setupDatabase } from "../postgresql/db-setup.js";
+import { getConfigs, getMigrationsPath, writeExternalConfig } from "../../utils/config.js";
 import fs from 'fs';
 import path from "path";
 import { app } from "electron";
-import { error, info } from "../utils/logger.js";
+import { error, info } from "../../utils/logger.js";
 
-export function initTanamaoFoodApi() {
+export default function initTanamaoFoodApi() {
     ipcMain.handle('tanamao-food:is-installed', async () => {
         try {
             const isInstalled = TanamaoFoodController.isFoodInstalled();

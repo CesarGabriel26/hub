@@ -5,6 +5,7 @@ export { }
 declare global {
     interface Window {
         api: {
+            programAction: (programId: string, action: string, ...args: any[]) => Promise<any>
             getPrograms: () => Promise<Program[]>
             postgresInstall: () => Promise<{ success: boolean; error?: string }>
             postgresRunning: () => Promise<{ success: boolean; isRunning?: boolean }>
@@ -34,6 +35,7 @@ declare global {
 
             logsList: () => Promise<{ success: boolean; programs?: any[] }>
             logsGet: (programId: string) => Promise<{ success: boolean; content?: string }>
+            logsClear: (programId: string) => Promise<{ success: boolean; error?: string }>
             logsWatch: (programId: string) => Promise<void>
             logsUnwatch: () => Promise<void>
             onLogsUpdate: (callback: (data: { programId: string; content: string }) => void) => void

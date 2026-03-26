@@ -12,4 +12,5 @@ export interface Program {
     type: 'app' | 'service';
     isRunning?: boolean;
     dependencies?: string[];
+    port?: number;
 }

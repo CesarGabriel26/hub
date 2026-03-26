@@ -65,9 +65,8 @@ import { info, warn, error as logError, getLogFile } from '../../utils/logger.js
 import { app } from 'electron';
 import axios from 'axios';
 import AdmZip from 'adm-zip';
-import PostgresController from '../postgresql/controller.js';
-import PostgisController from '../postgis/controller.js';
 import { setupDatabase } from '../postgresql/db-setup.js';
+import ProgramManager from '../program-manager.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const PROGRAM_ID = 'tanamao-food';
@@ -281,6 +280,44 @@ class TanamaoFoodController {
         return '0.0.0';
     }
 
+    // ─── Interface Padrão ─────────────────────────────────────────────────────
+
+    isInstalled() {
+        return this.isFoodInstalled();
+    }
+
+    isRunning() {
+        return this.isFoodRunning();
+    }
+
+    getVersion() {
+        return this.getFoodVersion();
+    }
+
+    getStatus() {
+        return {
+            status: this.isInstalled() ? 'installed' : 'not-installed',
+            isRunning: this.isRunning(),
+            version: this.getVersion(),
+        };
+    }
+
+    async install(progressCallback, installDir = null) {
+        return this.installFood(progressCallback, installDir);
+    }
+
+    async update(progressCallback) {
+        return this.updateFood(progressCallback);
+    }
+
+    async uninstall(progressCallback) {
+        return this.uninstallFood(progressCallback);
+    }
+
+    async open() {
+        return this.openFood();
+    }
+
     // ── Ações ─────────────────────────────────────────────────────────────────
 
     /**
@@ -355,30 +392,33 @@ class TanamaoFoodController {
 
             // ── Cálculo de Passos ───────────────────────────────────────────
             const steps = [];
-            if (!PostgresController.isInstalled()) steps.push('PostgreSQL');
-            if (!PostgisController.checkInstalled()) steps.push('PostGIS');
+            const postgresController = ProgramManager.getController('postgresql');
+            const postgisController = ProgramManager.getController('postgis');
+
+            if (postgresController && !postgresController.isInstalled()) steps.push('PostgreSQL');
+            if (postgisController && !postgisController.isInstalled()) steps.push('PostGIS');
             steps.push('Tanamao Food');
 
             totalSteps = steps.length;
 
             // ── Passo: PostgreSQL ────────────────────────────────────────────
 
-            if (!PostgresController.isInstalled()) {
+            if (postgresController && !postgresController.isInstalled()) {
                 currentStep++;
                 info(PROGRAM_ID, 'PostgreSQL não encontrado. Instalando dependência...');
                 updateProgress({ status: 'info', message: 'Instalando PostgreSQL (dependência)...' });
-                await PostgresController.downloadAndInstall((p) =>
+                await postgresController.install((p) =>
                     updateProgress({ ...p, app: 'postgresql', message: `PostgreSQL: Baixando...` })
                 );
             }
 
             // ── Passo: PostGIS ───────────────────────────────────────────────
 
-            if (!PostgisController.checkInstalled()) {
+            if (postgisController && !postgisController.isInstalled()) {
                 currentStep++;
                 info(PROGRAM_ID, 'PostGIS não encontrado. Instalando dependência...');
                 updateProgress({ status: 'info', message: 'Instalando PostGIS (dependência)...' });
-                await PostgisController.downloadAndInstall((p) =>
+                await postgisController.install((p) =>
                     updateProgress({ ...p, app: 'postgis', message: `PostGIS: Baixando...` })
                 );
             }
@@ -387,9 +427,11 @@ class TanamaoFoodController {
 
             // Inicia o PostgreSQL em background (fire-and-forget)
             // A instalação prossegue e só aguardará o banco no momento das migrations.
-            PostgresController.startPortable().catch(err => {
-                warn(PROGRAM_ID, `Erro ao tentar iniciar PostgreSQL em background: ${err.message}`);
-            });
+            if (postgresController) {
+                postgresController.start().catch(err => {
+                    warn(PROGRAM_ID, `Erro ao tentar iniciar PostgreSQL em background: ${err.message}`);
+                });
+            }
 
             // ── Passo: Buscar versão disponível ─────────────────────────────
 

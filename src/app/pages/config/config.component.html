@@ -92,12 +92,14 @@
             <div class="space-y-3">
                 <label class="text-sm font-medium text-slate-600">Dias da Semana</label>
                 <div class="flex flex-wrap gap-2">
-                    <button *ngFor="let dia of diasDaSemana" type="button" (click)="toggleDay(dia.value)"
+                    @for (dia of diasDaSemana; track dia.value) {
+                    <button type="button" (click)="toggleDay(dia.value)"
                         [class]="isDaySelected(dia.value) 
               ? 'px-3 py-1.5 rounded-full text-xs font-semibold bg-blue-600 text-white shadow-sm transition-all'
               : 'px-3 py-1.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600 hover:bg-slate-200 transition-all'">
                         {{ dia.label }}
                     </button>
+                    }
                 </div>
                 <div class="text-xs text-slate-400 italic">
                     O backup será rotativo: o arquivo de cada dia será sobrescrito na semana seguinte.

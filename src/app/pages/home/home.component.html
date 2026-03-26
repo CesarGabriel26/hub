@@ -1,5 +1,6 @@
 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div *ngFor="let p of programs$ | async" class="glass-card flex flex-col h-full group card">
+    @for (p of programs(); track p.id) {
+    <div class="glass-card flex flex-col h-full group card">
         <div class="flex items-start justify-between mb-4">
             <div class="w-12 h-12 rounded-xl bg-blue-50 flex items-center justify-center text-blue-600">
                 <span class="material-icons-outlined text-2xl">{{ p.icon }}</span>
@@ -72,4 +73,5 @@
             </div>
         </div>
     </div>
+    }
 </div>

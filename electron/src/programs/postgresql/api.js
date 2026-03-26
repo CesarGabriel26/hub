@@ -1,11 +1,11 @@
 import { ipcMain } from "electron";
-import PostgresController from "../programs/postgresql/controller.js";
-import { testDatabaseConnection, setupDatabase } from "../programs/postgresql/db-setup.js";
-import { getConfigs, getMigrationsPath, rootPath } from "../utils/config.js";
+import PostgresController from "./controller.js";
+import { testDatabaseConnection, setupDatabase } from "./db-setup.js";
+import { getConfigs, getMigrationsPath, rootPath } from "../../utils/config.js";
 import fs from 'fs';
 import path from 'path';
 
-export function initPostgresApi() {
+export default function initPostgresApi() {
     ipcMain.handle('postgres:install', async (event) => {
         try {
             await PostgresController.downloadAndInstall((progress) => {
@@ -81,7 +81,7 @@ export function initPostgresApi() {
     ipcMain.handle('postgres:setup', async (event) => {
         try {
             const migrationsPath = getMigrationsPath();
-            const migrationFiles = fs.existsSync(migrationsPath) 
+            const migrationFiles = fs.existsSync(migrationsPath)
                 ? fs.readdirSync(migrationsPath)
                     .filter(f => f.endsWith('.sql'))
                     .sort()
@@ -90,10 +90,10 @@ export function initPostgresApi() {
             const configs = getConfigs();
 
             await setupDatabase(
-                configs.database, 
-                configs.user, 
-                configs.password, 
-                migrationFiles, 
+                configs.database,
+                configs.user,
+                configs.password,
+                migrationFiles,
                 (progress) => {
                     event.sender.send('postgres:config:progress', progress);
                 },
