@@ -5,7 +5,11 @@ import dotenv from 'dotenv'
 
 dotenv.config()
 
-export const gitToken = ''
+/** URL base da API de pacotes Sunny Soft (não requer token). */
+export const PACKAGES_API = 'https://chamados.sunnysoft.com.br/packages';
+
+/** ID do produto Tanamao Food no serviço de pacotes. */
+export const PACKAGE_ID = 90;
 
 export function rootPath() {
     return app.isPackaged
@@ -36,7 +40,7 @@ export function getConfigPath() {
             user: 'postgres',
             password: 'admin',
             database: 'dados',
-            tanamao_food_path: 'C:\\Sunny\\Tanamao Food',
+            tanamao_food_path: 'C:\\Sunny\\Tanamao_Food',
             auto_start: true,
             auto_update: false,
             backup_enabled: false,

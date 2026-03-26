@@ -16,13 +16,12 @@ export class TanamaoFoodHandler implements ProgramHandler {
     init(onProgress: (id: string, status: Program['status'], progress?: number, message?: string) => void): void {
         if (window.api?.onTanamaoFoodProgress) {
             window.api.onTanamaoFoodProgress((progress) => {
-                if (progress.error) {
-                    onProgress(this.programId, 'not-installed', undefined, progress.error);
-                } else if (progress.status === 'completed') {
-                    onProgress(this.programId, 'installed', 100);
-                } else if (progress.status === 'installing') {
+                // Reporta apenas estados INTERMEDIÁRIOS — o estado final (installed / not-installed)
+                // é definido exclusivamente pelo retorno do IPC em DataService, evitando que o
+                // evento 'completed' do desinstalador sobrescreva o status correto.
+                if (progress.status === 'installing') {
                     onProgress(this.programId, 'installing', progress.percentage, (progress as any).message);
-                } else {
+                } else if (progress.status !== 'completed' && !progress.error) {
                     onProgress(this.programId, 'downloading', progress.percentage, (progress as any).message);
                 }
             });
@@ -30,13 +29,10 @@ export class TanamaoFoodHandler implements ProgramHandler {
 
         if (window.api?.onTanamaoFoodConfigProgress) {
             window.api.onTanamaoFoodConfigProgress((progress) => {
-                if (progress.error) {
-                    onProgress(this.programId, 'installed', undefined, progress.error);
-                } else if (progress.status === 'completed') {
-                    onProgress(this.programId, 'installed', 100, 'Configuração concluída!');
-                } else if (progress.status === 'migrating') {
+                if (progress.status === 'migrating') {
                     onProgress(this.programId, 'installing', progress.percentage, `Configurando banco: ${(progress as any).file || '...'}`);
                 }
+                // completed e error também ficam com o DataService
             });
         }
     }

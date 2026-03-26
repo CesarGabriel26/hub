@@ -25,7 +25,6 @@ class PostgisController {
     async downloadAndInstall(progressCallback) {
         try {
             // URL do bundle ZIP (mais fácil de extrair portatilmente)
-            // const url = 'https://download.osgeo.org/postgis/windows/pg18/postgis-bundle-pg18-3.6.2x64.zip';
             const url = 'https://download.osgeo.org/postgis/windows/pg17/postgis-bundle-pg17-3.6.2x64.zip';
             const installersPath = path.join(getWritablePath(), 'installers');
             if (!fs.existsSync(installersPath)) {

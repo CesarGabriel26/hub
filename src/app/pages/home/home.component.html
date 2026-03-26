@@ -41,12 +41,14 @@
         </div>
 
         <div class="flex items-center justify-between mt-auto pt-6 border-t border-slate-100">
+            @if(p.status === 'installed'){
             <div class="text-sm">
                 <span class="text-slate-400 uppercase text-[10px] font-bold block">Versão</span>
                 <span class="font-medium">{{ p.version || '---' }}</span>
             </div>
+            }
 
-            <div class="flex gap-2">
+            <div class="flex gap-2 ml-auto">
                 <button *ngIf="p.hasUpdate && p.status === 'installed'" (click)="update(p)"
                     class="btn-primary flex items-center gap-2 text-sm !py-2">
                     <span class="material-icons-outlined text-sm">upgrade</span>

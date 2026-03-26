@@ -54,3 +54,4 @@ configs.json
 *.exe
 /installers
 *.zip
+*.todo

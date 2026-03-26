@@ -68,11 +68,11 @@ class PostgresController {
     getEnvWithBinPath(extraEnv = {}) {
         const binPath = path.join(this.getInstallPath(), 'bin');
         const env = { ...process.env, ...extraEnv };
-        
+
         const pathKey = Object.keys(env).find(k => k.toLowerCase() === 'path') || 'Path';
         const oldPath = env[pathKey] || '';
         env[pathKey] = `${binPath}${path.delimiter}${oldPath}`;
-        
+
         return env;
     }
 
@@ -175,7 +175,7 @@ class PostgresController {
             // initdb -D <path> -U postgres --auth=trust
             // Usamos spawn para evitar travar a UI durante a inicialização (que pode demorar)
             await new Promise((resolve, reject) => {
-                const proc = spawn(`"${initdbPath}"`, ['-D', dataPath, '-U', 'postgres', '--auth=trust'], { 
+                const proc = spawn(`"${initdbPath}"`, ['-D', dataPath, '-U', 'postgres', '--auth=trust'], {
                     shell: true,
                     env: this.getEnvWithBinPath()
                 });
@@ -215,12 +215,13 @@ class PostgresController {
             }
 
             info(PROGRAM_ID, `Iniciando PostgreSQL na porta ${port}...`);
-            
+
             // pg_ctl start -D <dataPath> -l <logFile> -o "-p <port>"
-            const args = ['start', '-D', dataPath, '-l', logFile, '-o', `"-p ${port}"`];
+            // Usamos -W (no wait) porque temos nossa própria lógica de waitForReady.
+            const args = ['start', '-W', '-D', dataPath, '-l', logFile, '-o', `"-p ${port}"`];
             await this.runPgCtlAsync(args);
 
-            // Aguarda ficar pronto por alguns segundos
+            // Aguarda ficar pronto por alguns segundos (opcional aqui, já que runPgCtlAsync retornou)
             await this.waitForReady(10, 2000);
 
             info(PROGRAM_ID, 'PostgreSQL iniciado com sucesso.');
@@ -256,14 +257,15 @@ class PostgresController {
     async waitForReady(retries = 10, delay = 2000) {
         info(PROGRAM_ID, 'Aguardando PostgreSQL ficar pronto para conexões...');
         for (let i = 0; i < retries; i++) {
-            // obeter da config
             const configs = getConfigs();
+            // Conecta sempre no banco 'postgres' (padrão, sempre existe)
+            // para não depender do banco de dados da aplicação que ainda pode não ter sido criado.
             const pool = new Pool({
-                host: configs.host,
+                host: configs.host || 'localhost',
                 port: configs.port,
                 user: configs.user,
                 password: configs.password,
-                database: configs.database,
+                database: 'postgres',
                 connectionTimeoutMillis: 2000,
             });
 
@@ -387,7 +389,6 @@ class PostgresController {
      */
     async downloadAndInstall(progressCallback) {
         try {
-            // const url = 'https://sbp.enterprisedb.com/getfile.jsp?fileid=1260119';
             const url = 'https://sbp.enterprisedb.com/getfile.jsp?fileid=1260117';
             const installersPath = path.join(getWritablePath(), 'installers');
             if (!fs.existsSync(installersPath)) {
@@ -439,9 +440,10 @@ class PostgresController {
                     '-U', user,
                     '-h', 'localhost',
                     '-p', port.toString(),
+                    '-Fc',          // Formato custom: binário comprimido, restaurável via pg_restore
                     '--clean',
                     '--if-exists',
-                    '-f', backupPath, // Removido aspas extras, spawn/shell trata
+                    '-f', backupPath,
                     dbName
                 ];
 
@@ -540,6 +542,68 @@ class PostgresController {
         });
     }
 
+    /**
+     * Restaura um banco de dados a partir de um arquivo binário (.backup ou custom).
+     * @param {string} dbName - Nome do banco alvo
+     * @param {string} backupPath - Caminho do arquivo de backup
+     * @param {string} user - Usuário admin
+     * @param {string} password - Senha
+     */
+    async restoreBinaryBackup(dbName, backupPath, user = 'postgres', password = 'admin') {
+        return new Promise((resolve, reject) => {
+            try {
+                const configs = getConfigs();
+                const port = configs.port || 5432;
+                const pgRestorePath = this.getBinaryPath('pg_restore');
+                info(PROGRAM_ID, `Restaurando backup binário em ${dbName} (porta ${port}) a partir de ${backupPath}...`);
+
+                const env = this.getEnvWithBinPath({ PGPASSWORD: password });
+
+                // pg_restore -U {user} -h localhost -p {port} -d {dbName} -v {backupPath}
+                const args = [
+                    '-U', user,
+                    '-h', 'localhost',
+                    '-p', port.toString(),
+                    '-d', dbName,
+                    '-v',
+                    `"${backupPath}"`
+                ];
+
+                const proc = spawn(pgRestorePath, args, {
+                    env,
+                    shell: true,
+                    windowsVerbatimArguments: true
+                });
+
+                let errorOutput = '';
+                proc.stdout.on('data', (data) => logDetailed(PROGRAM_ID, `pg_restore stdout: ${data}`));
+                proc.stderr.on('data', (data) => {
+                    const msg = data.toString();
+                    errorOutput += msg;
+                    logDetailed(PROGRAM_ID, `pg_restore stderr: ${msg}`);
+                });
+
+                proc.on('close', (code) => {
+                    if (code === 0) {
+                        info(PROGRAM_ID, `Restauração binária concluída com sucesso.`);
+                        resolve({ success: true });
+                    } else {
+                        const msg = `Erro na restauração binária (pg_restore). Código: ${code}. Saída: ${errorOutput}`;
+                        logError(PROGRAM_ID, msg);
+                        reject(new Error(msg));
+                    }
+                });
+
+                proc.on('error', (err) => {
+                    logError(PROGRAM_ID, `Erro ao iniciar pg_restore: ${err.message}`);
+                    reject(err);
+                });
+            } catch (e) {
+                reject(e);
+            }
+        });
+    }
+
     async startPortable() {
         try {
             const configs = getConfigs();
@@ -562,7 +626,8 @@ class PostgresController {
             }
 
             // pg_ctl start -D <dataPath> -l <logFile> -o "-p <port>"
-            const args = ['start', '-D', pgDataPath, '-l', logFile, '-o', `"-p ${port}"`];
+            // Usamos -W (no wait) para não travar o processo principal.
+            const args = ['start', '-W', '-D', pgDataPath, '-l', logFile, '-o', `"-p ${port}"`];
             await this.runPgCtlAsync(args);
 
             // Aguarda ficar pronto
@@ -584,27 +649,40 @@ class PostgresController {
         return new Promise((resolve, reject) => {
             try {
                 const pgBinPath = this.getBinaryPath('pg_ctl');
-                // spawn precisa dos argumentos como array. shell: true ajuda com caminhos com espaços
-                const proc = spawn(`"${pgBinPath}"`, args, { 
-                    shell: true, 
+                info(PROGRAM_ID, `Executando pg_ctl com argumentos: ${args.join(' ')}`);
+
+                const proc = spawn(`"${pgBinPath}"`, args, {
+                    shell: true,
                     windowsVerbatimArguments: true,
                     env: this.getEnvWithBinPath()
                 });
 
-                let errorOutput = '';
+                let stdoutOutput = '';
+                let stderrOutput = '';
+
+                proc.stdout.on('data', (data) => {
+                    const msg = data.toString();
+                    stdoutOutput += msg;
+                    logDetailed(PROGRAM_ID, `pg_ctl stdout: ${msg.trim()}`);
+                });
+
                 proc.stderr.on('data', (data) => {
-                    errorOutput += data.toString();
+                    const msg = data.toString();
+                    stderrOutput += msg;
+                    logDetailed(PROGRAM_ID, `pg_ctl stderr: ${msg.trim()}`);
                 });
 
                 proc.on('close', (code) => {
                     if (code === 0) {
                         resolve();
                     } else {
-                        reject(new Error(`pg_ctl retornou erro (${code}): ${errorOutput}`));
+                        const errorMsg = stderrOutput || stdoutOutput || 'Sem saída de erro';
+                        reject(new Error(`pg_ctl retornou erro (${code}): ${errorMsg}`));
                     }
                 });
 
                 proc.on('error', (err) => {
+                    logError(PROGRAM_ID, `Erro ao spawnar pg_ctl: ${err.message}`);
                     reject(err);
                 });
             } catch (err) {
@@ -632,7 +710,7 @@ class PostgresController {
             if (fs.existsSync(installPath)) {
                 info(PROGRAM_ID, `Deletando pasta do PostgreSQL: ${installPath}`);
                 if (progressCallback) progressCallback({ status: 'uninstalling', percentage: 60, message: 'Removendo arquivos do PostgreSQL...' });
-                
+
                 // Tenta deletar várias vezes caso haja locks (comum no Windows)
                 let deleted = false;
                 for (let i = 0; i < 3; i++) {
@@ -641,11 +719,11 @@ class PostgresController {
                         deleted = true;
                         break;
                     } catch (err) {
-                        warn(PROGRAM_ID, `Falha ao deletar pasta (tentativa ${i+1}): ${err.message}`);
+                        warn(PROGRAM_ID, `Falha ao deletar pasta (tentativa ${i + 1}): ${err.message}`);
                         await new Promise(r => setTimeout(r, 1000));
                     }
                 }
-                
+
                 if (!deleted) {
                     throw new Error('Não foi possível remover a pasta do PostgreSQL. O diretório pode estar em uso por outro programa.');
                 }

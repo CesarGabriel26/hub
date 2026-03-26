@@ -17,18 +17,24 @@ const PROGRAM_ID = 'postgres';
 /**
  * Configura o banco de dados completo:
  * 1. Cria o banco se não existir
- * 2. Configura o usuário local
- * 3. Executa as migrations pendentes
+ * 2. Se for novo, cria as extensões necessárias
+ * 3. Se houver templatePath, restaura o backup binário
+ * 4. Configura o usuário local
+ * 5. Executa as migrations pendentes
  *
  * @param {string} dbName - Nome do banco de dados
  * @param {string} user - Usuário administrador do postgres
  * @param {string} password - Senha do usuário administrador
  * @param {string[]} migrationFiles - Caminhos dos arquivos .sql de migration
  * @param {Function} callback - Callback de progresso
+ * @param {string} templatePath - Opcional: caminho para o arquivo .backup de template
  */
-export async function setupDatabase(dbName = 'dados', user = 'postgres', password = 'admin', migrationFiles = [], callback) {
+export async function setupDatabase(dbName = 'dados', user = 'postgres', password = 'admin', migrationFiles = [], callback, templatePath = null) {
     info(PROGRAM_ID, `Configurando banco: ${dbName}...`);
     if (callback) callback({ status: 'initializing', percentage: 0 });
+
+    // Garante que o banco está pronto antes de tentar conectar
+    await PostgresController.waitForReady(15, 2000);
 
     const configs = getConfigs();
     const port = configs.port || 5432;
@@ -40,8 +46,6 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
         password,
         port,
     });
-
-    info(PROGRAM_ID, `Conexão: user=${user}, password=${password}`);
 
     try {
         // 1. Garante que o banco existe
@@ -57,6 +61,37 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
             info(PROGRAM_ID, `Banco ${dbName} já existe.`);
         }
 
+        // 1.1 Verifica se o banco precisa de configuração inicial (extensões e template)
+        const targetPool = new Pool({ user, host: 'localhost', database: dbName, password, port });
+        try {
+            // Verifica se a tabela de migrations_history existe para saber se o banco já foi inicializado
+            const histCheck = await targetPool.query(`
+                SELECT 1 FROM pg_tables 
+                WHERE schemaname = 'public' 
+                AND tablename = 'migrations_history'
+            `);
+            const isInitialized = histCheck.rowCount > 0;
+
+            if (!isInitialized) {
+                info(PROGRAM_ID, `Banco ${dbName} não inicializado. Realizando configuração inicial...`);
+                
+                info(PROGRAM_ID, 'Criando extensões necessárias (pgcrypto, postgis, unaccent)...');
+                await targetPool.query('CREATE EXTENSION IF NOT EXISTS pgcrypto');
+                await targetPool.query('CREATE EXTENSION IF NOT EXISTS postgis');
+                await targetPool.query('CREATE EXTENSION IF NOT EXISTS unaccent');
+                
+                if (templatePath && fs.existsSync(templatePath)) {
+                    info(PROGRAM_ID, `Usando template de backup: ${templatePath}`);
+                    if (callback) callback({ status: 'restoring_template', percentage: 5 });
+                    await PostgresController.restoreBinaryBackup(dbName, templatePath, user, password);
+                }
+            } else {
+                info(PROGRAM_ID, `Banco ${dbName} já inicializado anteriormente.`);
+            }
+        } finally {
+            await targetPool.end();
+        }
+
         await adminPool.end();
 
         // 2. Se o banco já existe, fazemos um backup de segurança antes das migrations
@@ -66,12 +101,13 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
             if (!fs.existsSync(backupsDir)) {
                 fs.mkdirSync(backupsDir, { recursive: true });
             }
-            backupPath = path.join(backupsDir, `${dbName}_pre_migration_${Date.now()}.sql`);
+            // Usa o formato custom do pg_dump (-Fc): comprimido, restaurável via pg_restore,
+            // o mesmo formato do .backup de template — muito mais eficiente que SQL puro.
+            backupPath = path.join(backupsDir, `${dbName}_pre_migration_${Date.now()}.backup`);
             await PostgresController.backupDatabase(dbName, backupPath, user, password);
         }
 
         // 3. Reconecta no banco alvo para operações
-        const port = getConfigs().port || 5432;
         const dbPool = new Pool({
             user,
             host: 'localhost',
@@ -102,7 +138,8 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
                 if (callback) callback({ status: 'info', message: 'Erro detectado. Restaurando backup...' });
 
                 await dbPool.end(); // Fecha pool antes de restaurar
-                await PostgresController.restoreDatabase(dbName, backupPath, user, password);
+                // Usa pg_restore (formato custom .backup) em vez do psql para .sql
+                await PostgresController.restoreBinaryBackup(dbName, backupPath, user, password);
                 warn(PROGRAM_ID, 'Backup restaurado com sucesso.');
             }
 
@@ -236,11 +273,7 @@ export async function runMigrations(pool, dbName, migrationFiles, callback) {
 /**
  * Testa a conexão com o banco de dados.
  */
-export async function testDatabaseConnection(dbName, user, password, host = 'localhost', port) {
-    if (!port) {
-        const configs = getConfigs();
-        port = configs.port || 5432;
-    }
+export async function testDatabaseConnection(dbName, user, password, host = 'localhost', port = 5433) {
     info(PROGRAM_ID, `Testando conexão: host=${host}, port=${port}, user=${user}, database=${dbName}`);
 
     const pool = new Pool({
