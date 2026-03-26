@@ -28,9 +28,10 @@ const PROGRAM_ID = 'postgres';
  * @param {string[]} migrationFiles - Caminhos dos arquivos .sql de migration
  * @param {Function} callback - Callback de progresso
  * @param {string} templatePath - Opcional: caminho para o arquivo .backup de template
+ * @param {string} systemId - ID do sistema para organizar os backups (ex: 'system', 'tanamao-food')
  */
-export async function setupDatabase(dbName = 'dados', user = 'postgres', password = 'admin', migrationFiles = [], callback, templatePath = null) {
-    info(PROGRAM_ID, `Configurando banco: ${dbName}...`);
+export async function setupDatabase(dbName = 'dados', user = 'postgres', password = 'admin', migrationFiles = [], callback, templatePath = null, systemId = 'system') {
+    info(PROGRAM_ID, `Configurando banco: ${dbName} (sistema: ${systemId})...`);
     if (callback) callback({ status: 'initializing', percentage: 0 });
 
     // Garante que o banco está pronto antes de tentar conectar
@@ -97,9 +98,20 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
         // 2. Se o banco já existe, fazemos um backup de segurança antes das migrations
         let backupPath = null;
         if (dbExists) {
-            const backupsDir = path.join(getWritablePath(), 'backups');
+            const backupsDir = path.join(getWritablePath(), 'backups', systemId);
             if (!fs.existsSync(backupsDir)) {
                 fs.mkdirSync(backupsDir, { recursive: true });
+            } else {
+                // Limpeza: remove backups antigos deste sistema antes de criar o novo
+                // para evitar o acúmulo de arquivos em caso de falhas consecutivas.
+                try {
+                    const oldBackups = fs.readdirSync(backupsDir).filter(f => f.endsWith('.backup'));
+                    for (const oldFile of oldBackups) {
+                        fs.unlinkSync(path.join(backupsDir, oldFile));
+                    }
+                } catch (cleanErr) {
+                    warn(PROGRAM_ID, `Erro ao limpar backups antigos: ${cleanErr.message}`);
+                }
             }
             // Usa o formato custom do pg_dump (-Fc): comprimido, restaurável via pg_restore,
             // o mesmo formato do .backup de template — muito mais eficiente que SQL puro.
@@ -116,8 +128,6 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
             port,
         });
 
-        info(PROGRAM_ID, `Conexão: user=${user}, password=${password}`);
-
         try {
             // 4. Configura usuário local
             await setupLocalUser(dbPool, dbName, callback);
@@ -128,8 +138,15 @@ export async function setupDatabase(dbName = 'dados', user = 'postgres', passwor
             await dbPool.end();
             info(PROGRAM_ID, 'Banco de dados e migrações concluídos!');
 
-            // Se deu tudo certo, podemos opcionalmente remover o backup ou apenas avisar
-            // Por segurança, vamos manter o backup mas avisar onde está.
+            // Se deu tudo certo e havia um backup de segurança, podemos removê-lo
+            if (backupPath && fs.existsSync(backupPath)) {
+                try {
+                    fs.unlinkSync(backupPath);
+                    info(PROGRAM_ID, 'Backup pré-migração removido após sucesso.');
+                } catch (unlinkErr) {
+                    warn(PROGRAM_ID, `Não foi possível remover backup temporário: ${unlinkErr.message}`);
+                }
+            }
         } catch (migrationError) {
             logError(PROGRAM_ID, `Erro durante migrações: ${migrationError.message}`);
 

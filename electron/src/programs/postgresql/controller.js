@@ -402,7 +402,14 @@ class PostgresController {
 
             info(PROGRAM_ID, 'Download e instalação do PostgreSQL concluídos com sucesso!');
         } catch (err) {
-            logError(PROGRAM_ID, `Erro no download/instalação: ${err.message || err}`);
+            if (err.name === 'AggregateError') {
+                logError(PROGRAM_ID, `Erro no download/instalação (AggregateError): ${err.message}`);
+                err.errors.forEach((e, i) => {
+                    logError(PROGRAM_ID, `  Erro [${i}]: ${e.message || e}`);
+                });
+            } else {
+                logError(PROGRAM_ID, `Erro no download/instalação: ${err.message || err}`);
+            }
             if (progressCallback) progressCallback({ status: 'error', error: err.message });
             throw err;
         }

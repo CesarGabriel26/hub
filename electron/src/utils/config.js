@@ -42,7 +42,7 @@ export function getConfigPath() {
             database: 'dados',
             tanamao_food_path: 'C:\\Sunny\\TanamaoFood',
             auto_start: true,
-            auto_update: false,
+            auto_update: true,
             backup_enabled: false,
             backup_time: '03:00',
             backup_days: [1, 2, 3, 4, 5], // segunda a sexta

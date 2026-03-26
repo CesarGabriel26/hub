@@ -1,6 +1,6 @@
 import { ipcMain } from "electron";
 import PostgresController from "../programs/postgresql/controller.js";
-import { testDatabaseConnection } from "../programs/postgresql/db-setup.js";
+import { testDatabaseConnection, setupDatabase } from "../programs/postgresql/db-setup.js";
 import { getConfigs, getMigrationsPath, rootPath } from "../utils/config.js";
 import fs from 'fs';
 import path from 'path';
@@ -89,14 +89,16 @@ export function initPostgresApi() {
                 : [];
             const configs = getConfigs();
 
-            await PostgresController.setupDatabase(
+            await setupDatabase(
                 configs.database, 
                 configs.user, 
                 configs.password, 
                 migrationFiles, 
                 (progress) => {
                     event.sender.send('postgres:config:progress', progress);
-                }
+                },
+                null, // templatePath
+                'system' // systemId
             );
             return { success: true };
         } catch (error) {

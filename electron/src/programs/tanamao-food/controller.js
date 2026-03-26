@@ -14,7 +14,7 @@
  * Não requer token ou autenticação. Dois endpoints são usados:
  *
  *   1. Busca o ID do pacote mais recente:
- *      GET https://chamados.sunnysoft.com.br/packages/latest?id=91
+ *      GET https://chamados.sunnysoft.com.br/packages/latest?id=90
  *      → Retorna um número inteiro. Ex: 331
  *
  *   2. Baixa o pacote (ZIP) com o instalador e os scripts SQL:
@@ -34,6 +34,11 @@
  * Após cada instalação/atualização bem-sucedida, o ID do pacote instalado
  * é salvo em configs.json como `installed_package_id` (número inteiro).
  * Isso permite que `updateFood()` saiba de qual versão partir ao pedir o delta.
+ * 
+ * 
+ * @TODO: 
+ * - Futuramente se ouver mais de um sistema, sera preciso salvar o package_id no banco de cada sistema ou no config.json de cada sistema
+ * 
  *
  * ── Dependências ─────────────────────────────────────────────────────────
  *
@@ -289,11 +294,22 @@ class TanamaoFoodController {
         }
 
         try {
-            // Configura o caminho do log para que o Hub possa acompanhar
+            // Configura a conexão e o log para que o Food use os mesmos dados do Hub
+            const configs = getConfigs();
             const logPath = getLogFile(PROGRAM_ID);
             const foodUserData = path.join(app.getPath('appData'), 'tanamao-food');
-            info(PROGRAM_ID, `Configurando log_path em ${foodUserData}: ${logPath}`);
-            writeExternalConfig(foodUserData, { log_path: logPath });
+
+            info(PROGRAM_ID, `Sincronizando configurações em ${foodUserData}`);
+            writeExternalConfig(foodUserData, {
+                log_path: logPath,
+                db: {
+                    host: configs.host,
+                    port: configs.port,
+                    user: configs.user,
+                    password: configs.password,
+                    database: configs.database
+                }
+            });
 
             info(PROGRAM_ID, `Abrindo app: ${installPath}`);
             spawn(`"${installPath}"`, [], { detached: true, stdio: 'ignore', shell: true }).unref();
@@ -322,7 +338,17 @@ class TanamaoFoodController {
      * @param {string|null} [installDir]    - Diretório de instalação personalizado (opcional)
      */
     async installFood(progressCallback, installDir = null) {
+        let currentStep = 0;
+        let totalSteps = 1;
+
         const cb = (data) => { if (progressCallback) progressCallback(data); };
+
+        /** Helper para injetar o prefixo de passos na mensagem */
+        const updateProgress = (data) => {
+            const stepPrefix = totalSteps > 1 ? `[${currentStep}/${totalSteps}] ` : '';
+            const message = data.message ? `${stepPrefix}${data.message}` : data.message;
+            cb({ ...data, message });
+        };
 
         try {
             info(PROGRAM_ID, '──── Iniciando instalação do Tanamao Food ────');
@@ -333,15 +359,7 @@ class TanamaoFoodController {
             if (!PostgisController.checkInstalled()) steps.push('PostGIS');
             steps.push('Tanamao Food');
 
-            const totalSteps = steps.length;
-            let currentStep = 0;
-
-            /** Helper para injetar o prefixo de passos na mensagem */
-            const updateProgress = (data) => {
-                const stepPrefix = totalSteps > 1 ? `[${currentStep}/${totalSteps}] ` : '';
-                const message = data.message ? `${stepPrefix}${data.message}` : data.message;
-                cb({ ...data, message });
-            };
+            totalSteps = steps.length;
 
             // ── Passo: PostgreSQL ────────────────────────────────────────────
 
@@ -457,13 +475,22 @@ class TanamaoFoodController {
                 return { success: false, error: msg };
             }
 
-            // Configura o log_path para que o Hub rastreie logs do Food
+            // Sincroniza configurações de banco e log_path para que o Food use os mesmos dados do Hub
             try {
+                const configs = getConfigs();
                 const logPath = getLogFile(PROGRAM_ID);
                 const foodUserData = path.join(app.getPath('appData'), 'tanamao-food');
-                writeExternalConfig(foodUserData, { log_path: logPath });
+
+                writeExternalConfig(foodUserData, {
+                    log_path: logPath,
+                    host: configs.host,
+                    port: configs.port,
+                    user: configs.user,
+                    password: configs.password,
+                    database: configs.database
+                });
             } catch (logErr) {
-                warn(PROGRAM_ID, `Não foi possível configurar log_path: ${logErr.message}`);
+                warn(PROGRAM_ID, `Não foi possível sincronizar configurações: ${logErr.message}`);
             }
 
             // ── Passo: Setup do banco de dados ──────────────────────────────
@@ -503,7 +530,8 @@ class TanamaoFoodController {
                     configs.password,
                     allSqlFiles,
                     (p) => updateProgress({ ...p, message: `Banco: ${p.status}...` }),
-                    templatePath
+                    templatePath,
+                    'tanamao-food'
                 );
 
                 info(PROGRAM_ID, 'Setup do banco de dados concluído.');
@@ -636,7 +664,9 @@ class TanamaoFoodController {
                         configs.user,
                         configs.password,
                         sqlFiles.sort(), // garante ordem de execução
-                        (p) => cb({ ...p, message: `Banco: ${p.status}...` })
+                        (p) => cb({ ...p, message: `Banco: ${p.status}...` }),
+                        null,
+                        'tanamao-food'
                     );
                     info(PROGRAM_ID, 'Migrations da atualização aplicadas com sucesso.');
                 } catch (dbErr) {
